@@ -21,10 +21,10 @@ command :share do |c|
     resource = RestClient::Resource.new url, :user => options.user, :password => options.password, :verify_ssl => OpenSSL::SSL::VERIFY_NONE
     params = {:message => {:body => message}}
     resource.post params do |response|
-      puts "API response:" if options.trace
-      puts response.body if options.trace
+      say "API response:" if options.trace
+      puts response.body if options.trace #FIXME: why doesn't say work here?
     end
-    puts "Message has been shared"
+    say "Message has been shared"
   end
 end
 
