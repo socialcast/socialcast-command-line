@@ -13,18 +13,25 @@ command :share do |c|
   c.summary = 'share a message'
   c.description = 'post a message into your socialcast stream'
   c.example 'description', 'command example'
-  c.option '--user', 'Socialcast account username'
+  c.option '-u', '--user STRING', String, 'Socialcast account username'
+  c.option '--domain STRING', String, 'Socialcast community domain'
   c.action do |args, options|
-    options.default :domain => 'demo.socialcast.local', :user => 'emily@socialcast.com', :password => 'demo'
     message = args.first
-    url = ['http://', options.domain, '/api/messages.json'].join
+    options.user = ask('Socialcast username: ') unless options.user
+    options.password = password
+    options.domain = ask('Socialcast domain: ') unless options.domain
+
+    # options.default :domain => 'demo.socialcast.local', :user => user, :password => password
+
+    url = ['https://', options.domain, '/api/messages.json'].join
+    say "Posting message to: #{url}"
     resource = RestClient::Resource.new url, :user => options.user, :password => options.password, :verify_ssl => OpenSSL::SSL::VERIFY_NONE
     params = {:message => {:body => message}}
     resource.post params do |response|
       say "API response:" if options.trace
       puts response.body if options.trace #FIXME: why doesn't say work here?
     end
-    say "Message has been shared"
+    say "Message has been shared" #FIXME: use notify_ok to show growl
   end
 end
 
