@@ -27,6 +27,7 @@ Gem::Specification.new do |s|
      "VERSION",
      "bin/socialcast",
      "lib/socialcast.rb",
+     "socialcast.gemspec",
      "test/helper.rb",
      "test/test_socialcast_cli.rb"
   ]
