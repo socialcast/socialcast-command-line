@@ -2,7 +2,6 @@
 
 require 'rubygems'
 require 'commander/import'
-require 'lib/socialcast'
 require 'rest_client'
 
 program :version, File.read(File.join(File.dirname(__FILE__), '..', 'VERSION')).strip
