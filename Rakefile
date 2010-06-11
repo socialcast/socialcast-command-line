@@ -8,7 +8,7 @@ begin
     gem.summary = %Q{command line interface to socialcast api}
     gem.description = %Q{publish messages to your stream from a command line interface}
     gem.email = "ryan@socialcast.com"
-    gem.homepage = "http://github.com/wireframe/socialcast"
+    gem.homepage = "http://github.com/wireframe/socialcast-command-line"
     gem.authors = ["Ryan Sonnek"]
     gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
     gem.add_runtime_dependency 'commander', '>= 4.0'
