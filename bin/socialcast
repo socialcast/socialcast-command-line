@@ -5,24 +5,26 @@ require 'commander/import'
 require 'lib/socialcast'
 require 'rest_client'
 
-program :version, '0.0.1'
+program :version, File.read(File.join(File.dirname(__FILE__), '..', 'VERSION')).strip
 program :description, 'command line interface to the socialcast api'
- 
+
 command :share do |c|
-  c.syntax = 'socialcast share [options]'
-  c.summary = ''
-  c.description = ''
+  c.syntax = 'socialcast share <message> [options]'
+  c.summary = 'share a message'
+  c.description = 'post a message into your socialcast stream'
   c.example 'description', 'command example'
-  c.option '--some-switch', 'Some switch that does something'
+  c.option '--user', 'Socialcast account username'
   c.action do |args, options|
-    url = ['http://', 'demo.socialcast.local', '/api/messages.json'].join
-    email = 'emily@socialcast.com'
-    password = 'demo'
-    resource = RestClient::Resource.new url, :user => email, :password => password, :verify_ssl => OpenSSL::SSL::VERIFY_NONE
-    params = {:message => {:body => 'hello world'}}
+    options.default :domain => 'demo.socialcast.local', :user => 'emily@socialcast.com', :password => 'demo'
+    message = args.first
+    url = ['http://', options.domain, '/api/messages.json'].join
+    resource = RestClient::Resource.new url, :user => options.user, :password => options.password, :verify_ssl => OpenSSL::SSL::VERIFY_NONE
+    params = {:message => {:body => message}}
     resource.post params do |response|
-      puts response.body
+      puts "API response:" if options.trace
+      puts response.body if options.trace
     end
+    puts "Message has been shared"
   end
 end
 
