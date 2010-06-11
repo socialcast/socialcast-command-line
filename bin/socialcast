@@ -2,7 +2,8 @@
 
 require 'rubygems'
 require 'commander/import'
-require 'socialcast'
+require 'lib/socialcast'
+require 'rest_client'
 
 program :version, '0.0.1'
 program :description, 'command line interface to the socialcast api'
@@ -14,7 +15,14 @@ command :share do |c|
   c.example 'description', 'command example'
   c.option '--some-switch', 'Some switch that does something'
   c.action do |args, options|
-    # Do something or c.when_called Socialcast::Commands::Share
+    url = ['http://', 'demo.socialcast.local', '/api/messages.json'].join
+    email = 'emily@socialcast.com'
+    password = 'demo'
+    resource = RestClient::Resource.new url, :user => email, :password => password, :verify_ssl => OpenSSL::SSL::VERIFY_NONE
+    params = {:message => {:body => 'hello world'}}
+    resource.post params do |response|
+      puts response.body
+    end
   end
 end
 
