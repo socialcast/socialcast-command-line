@@ -4,11 +4,11 @@ require 'rake'
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
-    gem.name = "socialcast_cli"
-    gem.summary = %Q{TODO: one-line summary of your gem}
-    gem.description = %Q{TODO: longer description of your gem}
+    gem.name = "socialcast"
+    gem.summary = %Q{command line interface to socialcast api}
+    gem.description = %Q{publish messages to your stream from a command line interface}
     gem.email = "ryan@socialcast.com"
-    gem.homepage = "http://github.com/wireframe/socialcast_cli"
+    gem.homepage = "http://github.com/wireframe/socialcast"
     gem.authors = ["Ryan Sonnek"]
     gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
