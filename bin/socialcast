@@ -3,15 +3,53 @@
 require 'rubygems'
 require 'commander/import'
 require 'rest_client'
+require 'fileutils'
+require 'json'
 
 program :version, File.read(File.join(File.dirname(__FILE__), '..', 'VERSION')).strip
 program :description, 'command line interface to the socialcast api'
+
+command :authenticate do |c|
+  c.syntax = 'socialcast authenticate [options]'
+  c.summary = 'authenticate your Socialcast credentials'
+  c.description = 'verify that your credentials are valid'
+  c.example 'socialcast authenticate -u emily@socialcast.com', 'default usage'
+  c.option '-u', '--user STRING', String, 'Socialcast account username/email'
+  c.option '--domain STRING', String, 'Socialcast community domain'
+  c.action do |args, options|
+    options.default :domain => 'api.socialcast.com'
+
+    options.user = ask('Socialcast username: ') unless options.user
+    options.password = password
+
+    say "Authenticating #{options.user}"
+    url = ['https://', options.domain, '/api/authentication.json'].join
+    params = {:email => options.user, :password => options.password }
+    resource = RestClient::Resource.new url
+    resource.post params do |response|
+      say "API response:" if options.trace
+      puts response.body.to_s if options.trace
+      communities = JSON.parse(response.body.to_s)['communities']
+      options.domain = communities.detect {|c| c['domain'] == options.domain} ? options.domain : communities.first['domain']
+    end
+
+    config_dir = File.expand_path '~/.socialcast'
+    FileUtils.mkdir config_dir, :mode => 0700 unless File.exist?(config_dir)
+    credentials_file = File.join config_dir, 'credentials.yml'
+    File.open(credentials_file, "w") do |f|
+      f.write({:user => options.user, :password => options.password, :domain => options.domain}.to_yaml)
+    end
+    File.chmod 0600, credentials_file
+    say "Authentication successful for #{options.domain}"
+  end
+end
+
 
 command :share do |c|
   c.syntax = 'socialcast share <message> [options]'
   c.summary = 'share a message'
   c.description = 'post a message into your socialcast stream'
-  c.example 'description', 'command example'
+  c.example 'socialcast share "some text"', 'basic usage'
   c.option '-u', '--user STRING', String, 'Socialcast account username'
   c.option '--domain STRING', String, 'Socialcast community domain'
   c.action do |args, options|
@@ -28,7 +66,7 @@ command :share do |c|
     params = {:message => {:body => message}}
     resource.post params do |response|
       say "API response:" if options.trace
-      puts response.body if options.trace #FIXME: why doesn't say work here?
+      say response.body.to_s if options.trace
     end
     say "Message has been shared" #FIXME: use notify_ok to show growl
   end
