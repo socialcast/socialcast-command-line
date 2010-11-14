@@ -46,19 +46,12 @@ command :share do |c|
   c.summary = 'share a message'
   c.description = 'post a message into your socialcast stream'
   c.example 'socialcast share "some text"', 'basic usage'
-  c.option '-u', '--user STRING', String, 'Socialcast account username'
-  c.option '--domain STRING', String, 'Socialcast community domain'
   c.action do |args, options|
     message = args.first
-    options.user = ask('Socialcast username: ') unless options.user
-    options.password = password
-    options.domain = ask('Socialcast domain: ') unless options.domain
 
-    # options.default :domain => 'demo.socialcast.local', :user => user, :password => password
-
-    url = ['https://', options.domain, '/api/messages.json'].join
-    say "Posting message to: #{url}"
-    resource = RestClient::Resource.new url, :user => options.user, :password => options.password
+    url = ['https://', credentials[:domain], '/api/messages.json'].join
+    say "Posting message from #{credentials[:user]} to: #{url}"
+    resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password]
     params = {:message => {:body => message}}
     resource.post params do |response|
       say "API response:" if options.trace

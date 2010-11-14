@@ -14,6 +14,7 @@ module Socialcast
     File.chmod 0600, credentials_file
   end
   def credentials
-    YAML.load_file(credentials_file).symbolize_keys!
+    raise 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize' unless File.exist?(credentials_file)
+    YAML.load_file(credentials_file)
   end
 end
