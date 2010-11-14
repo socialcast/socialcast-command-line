@@ -57,7 +57,7 @@ command :share do |c|
       say "API response:" if options.trace
       say response.body.to_s if options.trace
     end
-    say "Message has been shared" #FIXME: use notify_ok to show growl
+    say "Message has been shared"
   end
 end
 
