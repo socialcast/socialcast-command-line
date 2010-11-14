@@ -24,7 +24,7 @@ command :share do |c|
 
     url = ['https://', options.domain, '/api/messages.json'].join
     say "Posting message to: #{url}"
-    resource = RestClient::Resource.new url, :user => options.user, :password => options.password, :verify_ssl => OpenSSL::SSL::VERIFY_NONE
+    resource = RestClient::Resource.new url, :user => options.user, :password => options.password
     params = {:message => {:body => message}}
     resource.post params do |response|
       say "API response:" if options.trace
