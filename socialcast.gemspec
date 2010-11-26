@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{socialcast}
-  s.version = "0.2.1"
+  s.version = "0.3.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Ryan Sonnek"]
-  s.date = %q{2010-11-22}
+  s.date = %q{2010-11-25}
   s.default_executable = %q{socialcast}
   s.description = %q{publish messages to your stream from a command line interface}
   s.email = %q{ryan@socialcast.com}
