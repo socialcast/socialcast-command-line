@@ -46,13 +46,14 @@ command :share do |c|
   c.summary = 'share a message'
   c.description = 'post a message into your socialcast stream'
   c.example 'socialcast share "some text"', 'basic usage'
+  c.option '--url STRING', String, 'referenced url for the message'
   c.action do |args, options|
     message = args.first
 
     url = ['https://', credentials[:domain], '/api/messages.json'].join
     say "Posting message from #{credentials[:user]} to: #{url}"
     resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password]
-    params = {:message => {:body => message}}
+    params = {:message => {:body => message, :url => options.url}}
     resource.post params do |response|
       say "API response:" if options.trace
       say response.body.to_s if options.trace
