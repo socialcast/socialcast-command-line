@@ -12,8 +12,8 @@ begin
     gem.authors = ["Ryan Sonnek"]
     gem.add_development_dependency "shoulda", ">= 0"
     gem.add_runtime_dependency 'commander', '>= 4.0'
-    gem.add_runtime_dependency 'rest-client', '>= 1.5.0'
-    gem.add_runtime_dependency 'json', '>= 0'
+    gem.add_runtime_dependency 'rest-client', '>= 1.6.1'
+    gem.add_runtime_dependency 'json', '>= 1.4.6'
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
   Jeweler::GemcutterTasks.new

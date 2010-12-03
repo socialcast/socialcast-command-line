@@ -28,12 +28,10 @@ command :authenticate do |c|
     url = ['https://', options.domain, '/api/authentication.json'].join
     params = {:email => options.user, :password => options.password }
     resource = RestClient::Resource.new url
-    resource.post params do |response|
-      say "API response:" if options.trace
-      puts response.body.to_s if options.trace
-      communities = JSON.parse(response.body.to_s)['communities']
-      options.domain = communities.detect {|c| c['domain'] == options.domain} ? options.domain : communities.first['domain']
-    end
+    response = resource.post params
+    puts "API response: #{response.body.to_s}" if options.trace
+    communities = JSON.parse(response.body.to_s)['communities']
+    options.domain = communities.detect {|c| c['domain'] == options.domain} ? options.domain : communities.first['domain']
 
     save_credentials :user => options.user, :password => options.password, :domain => options.domain
     say "Authentication successful for #{options.domain}"
@@ -54,10 +52,9 @@ command :share do |c|
     say "Posting message from #{credentials[:user]} to: #{url}"
     resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password]
     params = {:message => {:body => message, :url => options.url}}
-    resource.post params do |response|
-      say "API response:" if options.trace
-      say response.body.to_s if options.trace
-    end
+    response = resource.post params
+    puts "API response: #{response.body.to_s}" if options.trace
+
     say "Message has been shared"
   end
 end
