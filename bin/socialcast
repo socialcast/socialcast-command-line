@@ -5,6 +5,7 @@ require 'commander/import'
 require 'rest_client'
 require 'fileutils'
 require 'json'
+require 'yaml'
 require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast')
 include Socialcast
 
