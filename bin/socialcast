@@ -1,11 +1,8 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
 require 'commander/import'
 require 'rest_client'
-require 'fileutils'
 require 'json'
-require 'yaml'
 require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast')
 include Socialcast
 
@@ -49,12 +46,11 @@ command :share do |c|
   c.action do |args, options|
     message = args.first
 
-    url = ['https://', credentials[:domain], '/api/messages.json'].join
-    say "Posting message from #{credentials[:user]} to: #{url}"
-    resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password]
-    params = {:message => {:body => message, :url => options.url}}
-    response = resource.post params
-    puts "API response: #{response.body.to_s}" if options.trace
+    Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
+    Socialcast::Message.user = credentials[:user]
+    Socialcast::Message.password = credentials[:password]
+
+    Socialcast::Message.create :body => message, :url => options.url
 
     say "Message has been shared"
   end
