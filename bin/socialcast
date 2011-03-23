@@ -14,7 +14,7 @@ command :authenticate do |c|
   c.syntax = 'socialcast authenticate [options]'
   c.summary = 'authenticate your Socialcast credentials'
   c.description = 'verify that your credentials are valid'
-  c.example 'socialcast authenticate -u emily@socialcast.com', 'default usage'
+  c.example 'default usage', 'socialcast authenticate -u emily@socialcast.com'
   c.option '-u', '--user STRING', String, 'Socialcast account username/email'
   c.option '--domain STRING', String, 'Socialcast community domain'
   c.action do |args, options|
@@ -42,10 +42,10 @@ command :share do |c|
   c.syntax = 'socialcast share <message> [options]'
   c.summary = 'share a message'
   c.description = 'post a message into your socialcast stream'
-  c.example 'socialcast share "some text"', 'basic usage'
+  c.example 'basic usage', 'socialcast share "some text"'
   c.option '--url STRING', String, 'referenced url for the message'
   c.action do |args, options|
-    message = args.first
+    message = args.any? ? args.first : $stdin.read
 
     Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
     Socialcast::Message.user = credentials[:user]
