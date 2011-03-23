@@ -45,7 +45,8 @@ command :share do |c|
   c.example 'basic usage', 'socialcast share "some text"'
   c.option '--url STRING', String, 'referenced url for the message'
   c.action do |args, options|
-    message = args.any? ? args.first : $stdin.read
+    message = args.first
+    message ||= $stdin.read_nonblock(100_000) rescue nil
 
     Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
     Socialcast::Message.user = credentials[:user]
