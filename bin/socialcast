@@ -4,9 +4,10 @@ require 'commander/import'
 require 'rest_client'
 require 'json'
 require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast')
+require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast', 'version')
 include Socialcast
 
-program :version, File.read(File.join(File.dirname(__FILE__), '..', 'VERSION')).strip
+program :version, Socialcast::VERSION
 program :description, 'Socialcast API command line interface'
 
 command :authenticate do |c|
