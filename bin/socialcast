@@ -44,15 +44,34 @@ command :share do |c|
   c.description = 'post a message into your socialcast stream'
   c.example 'basic usage', 'socialcast share "some text"'
   c.option '--url STRING', String, 'referenced url for the message'
+  c.option '--attachments FILES', Array, 'list of files to attach to the message'
   c.action do |args, options|
+    options.default :attachments => []
+
     message = args.first
     message ||= $stdin.read_nonblock(100_000) rescue nil
+
+    attachment_ids = []
+    options.attachments.each do |path|
+      Dir[File.expand_path(path)].each do |attachment|
+        attachment_url = ['https://', credentials[:domain], '/api/attachments.json'].join
+        say "Uploading attachment #{attachment}..."
+        attachment_uploader = RestClient::Resource.new attachment_url, :user => credentials[:user], :password => credentials[:password]
+        attachment_uploader.post :attachment => File.new(attachment) do |response, request, result|
+          if response.code == 201
+            attachment_ids << JSON.parse(response.body)['attachment']['id']
+          else
+            say "Error uploading attachment: #{response.body}"
+          end
+        end
+      end
+    end
 
     Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
     Socialcast::Message.user = credentials[:user]
     Socialcast::Message.password = credentials[:password]
 
-    Socialcast::Message.create :body => message, :url => options.url
+    Socialcast::Message.create :body => message, :url => options.url, :attachment_ids => attachment_ids
 
     say "Message has been shared"
   end
