@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Ryan Sonnek","Sean Cashin"]
   s.email       = ["ryan@socialcast.com"]
-  s.homepage    = "http://github.com/scashin133/socialcast-command-line"
+  s.homepage    = "http://github.com/wireframe/socialcast-command-line"
   s.summary     = %q{command line interface to socialcast api}
   s.description = %q{publish messages to your stream from a command line interface}
 
