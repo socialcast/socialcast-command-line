@@ -1,0 +1,5 @@
+Ryan Sonnek - Original Author
+
+see http://github.com/socialcast/socialcast-command-line/contributors
+for comple list of contributors
+
