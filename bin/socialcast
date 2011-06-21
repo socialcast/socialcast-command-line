@@ -1,79 +1,84 @@
 #!/usr/bin/env ruby
 
-require 'commander/import'
-require 'rest_client'
-require 'json'
-require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast')
-require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast', 'version')
-include Socialcast
+require "thor"
+require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast', 'cli')
 
-program :version, Socialcast::VERSION
-program :description, 'Socialcast API command line interface'
+Socialcast::CLI.start
 
-command :authenticate do |c|
-  c.syntax = 'socialcast authenticate [options]'
-  c.summary = 'authenticate your Socialcast credentials'
-  c.description = 'verify that your credentials are valid'
-  c.example 'default usage', 'socialcast authenticate -u emily@socialcast.com'
-  c.option '-u', '--user STRING', String, 'Socialcast account username/email'
-  c.option '--domain STRING', String, 'Socialcast community domain'
-  c.action do |args, options|
-    options.default :domain => 'api.socialcast.com'
+# require 'commander/import'
+# require 'rest_client'
+# require 'json'
+# require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast')
+# require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast', 'version')
+# include Socialcast
 
-    options.user = ask('Socialcast username: ') unless options.user
-    options.password = password
+# program :version, Socialcast::VERSION
+# program :description, 'Socialcast API command line interface'
 
-    say "Authenticating #{options.user}"
-    url = ['https://', options.domain, '/api/authentication.json'].join
-    params = {:email => options.user, :password => options.password }
-    resource = RestClient::Resource.new url
-    response = resource.post params
-    puts "API response: #{response.body.to_s}" if options.trace
-    communities = JSON.parse(response.body.to_s)['communities']
-    options.domain = communities.detect {|c| c['domain'] == options.domain} ? options.domain : communities.first['domain']
+# command :authenticate do |c|
+#   c.syntax = 'socialcast authenticate [options]'
+#   c.summary = 'authenticate your Socialcast credentials'
+#   c.description = 'verify that your credentials are valid'
+#   c.example 'default usage', 'socialcast authenticate -u emily@socialcast.com'
+#   c.option '-u', '--user STRING', String, 'Socialcast account username/email'
+#   c.option '--domain STRING', String, 'Socialcast community domain'
+#   c.action do |args, options|
+#     options.default :domain => 'api.socialcast.com'
 
-    save_credentials :user => options.user, :password => options.password, :domain => options.domain
-    say "Authentication successful for #{options.domain}"
-  end
-end
+#     options.user = ask('Socialcast username: ') unless options.user
+#     options.password = password
+
+#     say "Authenticating #{options.user}"
+#     url = ['https://', options.domain, '/api/authentication.json'].join
+#     params = {:email => options.user, :password => options.password }
+#     resource = RestClient::Resource.new url
+#     response = resource.post params
+#     puts "API response: #{response.body.to_s}" if options.trace
+#     communities = JSON.parse(response.body.to_s)['communities']
+#     options.domain = communities.detect {|c| c['domain'] == options.domain} ? options.domain : communities.first['domain']
+
+#     save_credentials :user => options.user, :password => options.password, :domain => options.domain
+#     say "Authentication successful for #{options.domain}"
+#   end
+# end
 
 
-command :share do |c|
-  c.syntax = 'socialcast share <message> [options]'
-  c.summary = 'share a message'
-  c.description = 'post a message into your socialcast stream'
-  c.example 'basic usage', 'socialcast share "some text"'
-  c.option '--url STRING', String, 'referenced url for the message'
-  c.option '--attachments FILES', Array, 'list of files to attach to the message'
-  c.action do |args, options|
-    options.default :attachments => []
+# command :share do |c|
+#   c.syntax = 'socialcast share <message> [options]'
+#   c.summary = 'share a message'
+#   c.description = 'post a message into your socialcast stream'
+#   c.example 'basic usage', 'socialcast share "some text"'
+#   c.option '--url STRING', String, 'referenced url for the message'
+#   c.option '--attachments FILES', Array, 'list of files to attach to the message'
+#   c.action do |args, options|
+#     options.default :attachments => []
 
-    message = args.first
-    message ||= $stdin.read_nonblock(100_000) rescue nil
+#     message = args.first
+#     message ||= $stdin.read_nonblock(100_000) rescue nil
 
-    attachment_ids = []
-    options.attachments.each do |path|
-      Dir[File.expand_path(path)].each do |attachment|
-        attachment_url = ['https://', credentials[:domain], '/api/attachments.json'].join
-        say "Uploading attachment #{attachment}..."
-        attachment_uploader = RestClient::Resource.new attachment_url, :user => credentials[:user], :password => credentials[:password]
-        attachment_uploader.post :attachment => File.new(attachment) do |response, request, result|
-          if response.code == 201
-            attachment_ids << JSON.parse(response.body)['attachment']['id']
-          else
-            say "Error uploading attachment: #{response.body}"
-          end
-        end
-      end
-    end
+#     attachment_ids = []
+#     options.attachments.each do |path|
+#       Dir[File.expand_path(path)].each do |attachment|
+#         attachment_url = ['https://', credentials[:domain], '/api/attachments.json'].join
+#         say "Uploading attachment #{attachment}..."
+#         attachment_uploader = RestClient::Resource.new attachment_url, :user => credentials[:user], :password => credentials[:password]
+#         attachment_uploader.post :attachment => File.new(attachment) do |response, request, result|
+#           if response.code == 201
+#             attachment_ids << JSON.parse(response.body)['attachment']['id']
+#           else
+#             say "Error uploading attachment: #{response.body}"
+#           end
+#         end
+#       end
+#     end
 
-    Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
-    Socialcast::Message.user = credentials[:user]
-    Socialcast::Message.password = credentials[:password]
+#     Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
+#     Socialcast::Message.user = credentials[:user]
+#     Socialcast::Message.password = credentials[:password]
 
-    Socialcast::Message.create :body => message, :url => options.url, :attachment_ids => attachment_ids
+#     Socialcast::Message.create :body => message, :url => options.url, :attachment_ids => attachment_ids
 
-    say "Message has been shared"
-  end
-end
+#     say "Message has been shared"
+#   end
+# end
 
