@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-require "thor"
 require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast', 'cli')
 
 Socialcast::CLI.start

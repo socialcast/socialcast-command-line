@@ -1,16 +1,23 @@
+require "thor"
+require 'json'
+# require 'highline'
+require 'rest_client'
+
 require 'socialcast'
 require 'socialcast/message'
-require 'json'
-require 'highline'
-require 'rest_client'
+
 
 module Socialcast
   class CLI < Thor
+    include Thor::Actions
+    include Socialcast
+    default_task :share
+
     desc "share", "Posts a new message into socialcast"
+    method_option :message, :type => :string, :aliases => '-m'
     method_option :url, :type => :string
-    method_option :attachments, :type => :array
+    method_option :attachments, :type => :array, :default => []
     def share
-      message = args.first
       message ||= $stdin.read_nonblock(100_000) rescue nil
 
       attachment_ids = []
