@@ -15,10 +15,10 @@ Gem::Specification.new do |s|
   s.rubyforge_project = "socialcast"
   
   s.add_development_dependency  "shoulda", ">= 0"
-  s.add_runtime_dependency 'commander', '>= 4.0'
   s.add_runtime_dependency 'rest-client', '>= 1.4.0'
   s.add_runtime_dependency 'json', '>= 1.4.6'
   s.add_runtime_dependency 'thor', '>= 0.14.6'
+  s.add_runtime_dependency 'highline', '>= 1.6.2'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")

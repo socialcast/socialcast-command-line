@@ -1,7 +1,7 @@
 require "thor"
 require 'json'
 require 'rest_client'
-
+require 'highline'
 require 'socialcast'
 require 'socialcast/message'
 
@@ -17,7 +17,7 @@ module Socialcast
     method_option :trace, :type => :boolean, :default => false, :aliases => '-v'
     def authenticate
       user = options[:user] || ask('Socialcast username: ')
-      password = ask('Socialcast password: ')
+      password = HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
       domain = options[:domain]
 
       url = ['https://', domain, '/api/authentication.json'].join

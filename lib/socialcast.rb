@@ -1,6 +1,5 @@
 require 'yaml'
 require 'fileutils'
-require File.join(File.dirname(__FILE__), 'socialcast', 'message')
 
 module Socialcast
   def config_dir
