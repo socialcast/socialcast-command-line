@@ -5,7 +5,6 @@ require 'rest_client'
 require 'socialcast'
 require 'socialcast/message'
 
-
 module Socialcast
   class CLI < Thor
     include Thor::Actions
