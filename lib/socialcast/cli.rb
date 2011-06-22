@@ -9,7 +9,6 @@ module Socialcast
   class CLI < Thor
     include Thor::Actions
     include Socialcast
-    default_task :share
 
     desc "authenticate", "Authenticate using your Socialcast credentials"
     method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'
