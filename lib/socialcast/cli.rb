@@ -5,6 +5,10 @@ require 'highline'
 require 'socialcast'
 require 'socialcast/message'
 
+require 'zlib'
+require 'builder'
+require 'net/ldap'
+
 module Socialcast
   class CLI < Thor
     include Thor::Actions
@@ -61,6 +65,12 @@ module Socialcast
       Socialcast::Message.create :body => message, :url => options[:url], :attachment_ids => attachment_ids
 
       say "Message has been shared"
+    end
+
+    desc 'provision', 'provision users from ldap compatible user repository'
+    method_option :configure, :default => false
+    def provision
+
     end
   end
 end
