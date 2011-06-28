@@ -20,4 +20,7 @@ module Socialcast
     raise 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize' unless File.exist?(credentials_file)
     YAML.load_file(credentials_file)
   end
+  def grab_value(entry)
+    entry.is_a?(Array) ? entry.first : entry
+  end
 end

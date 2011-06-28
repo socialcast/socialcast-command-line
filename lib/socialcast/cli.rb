@@ -77,7 +77,7 @@ module Socialcast
 
       if options[:setup]
         create_file config_file do
-          File.read File.join(__FILE__, '..', 'config', 'ldap.yml')
+          File.read File.join(File.dirname(__FILE__), '..', '..', 'config', 'ldap.yml')
         end
         return
       end
@@ -165,10 +165,6 @@ module Socialcast
       File.delete(output_file) if options[:delete_users_file]
 
       say "Finished"
-    end
-
-    def grab_value(entry)
-      entry.is_a?(Array) ? entry.first : entry
     end
   end
 end
