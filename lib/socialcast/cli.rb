@@ -68,9 +68,103 @@ module Socialcast
     end
 
     desc 'provision', 'provision users from ldap compatible user repository'
-    method_option :configure, :default => false
+    method_option :setup, :default => false
+    method_option :config, :default => 'ldap.yml', :aliases => '-c'
+    method_option :output, :default => 'users.xml.gz', :aliases => '-o'
+    method_option :delete_users_file, :default => true
     def provision
+      config_file = File.join Dir.pwd, options[:config]
+      config = YAML.load_file config_file
 
+      if options[:setup]
+        # write out default config.yml file
+        return
+      end
+
+      unless config.has_key? "connections"
+        config["connections"] = [{
+          "ldap_username" => config["ldap_username"],
+          "ldap_pwd" => config["ldap_pwd"],
+          "ldap_host" => config["ldap_host"],
+          "ldap_port" => config["ldap_port"],
+          "basedn" => config["basedn"],
+          "filter" => config["filter"]
+        }]
+      end
+
+      required_mappings = %w{email first_name last_name}
+      required_mappings.each do |field|
+        unless config["mappings"].has_key? field
+          fail "Missing required mapping: #{field}"
+        end
+      end
+
+      logger = Logger.new(STDOUT)
+      output_file = File.join Dir.pwd, options[:output]
+      Zlib::GzipWriter.open(output_file) do |gz|
+        xml = Builder::XmlMarkup.new(:target => gz, :indent => 1)
+        xml.instruct!
+        xml.export do |export|
+          export.users(:type => "array") do |users|
+            config["connections"].each do |connection|
+              say "Connecting to #{connection["ldap_host"]} #{connection["basedn"]}..." 
+              ldap = Net::LDAP.new :host => connection["ldap_host"], :port => connection["ldap_port"], :base => connection["basedn"]
+              ldap.auth connection["ldap_username"], connection["ldap_pwd"]
+              say "Connected"
+              say "Searching..." 
+              count = 0
+              ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"]) do |entry|
+                next if grab_value(entry[config["mappings"]["email"]]).blank? || (config["mappings"].has_key?("unique_identifier") && grab_value(entry[config["mappings"]["unique_identifier"]]).blank?)
+                users.user do |user|
+                  %w{unique_identifier first_name last_name employee_number}.each do |attribute|
+                    next unless config['mappings'].has_key?(attribute)
+                    user.tag! attribute, grab_value(entry[config["mappings"][attribute]])
+                  end
+                  user.tag! 'contact-info' do |contact_info|
+                    %w{email location cell_phone office_phone}.each do |attribute|
+                      next unless config['mappings'].has_key?(attribute)
+                      contact_info.tag! attribute, grab_value(entry[config["mappings"][attribute]])
+                    end
+                  end
+                  user.tag! 'custom-fields', :type => "array" do |custom_fields|
+                    %w{title}.each do |attribute|
+                      next unless config['mappings'].has_key?(attribute)
+                      custom_fields.tag! 'custom-field' do |custom_field|
+                        custom_field.id(attribute)
+                        custom_field.value(grab_value(entry[config["mappings"][attribute]]))
+                      end
+                    end
+                  end
+                end # user
+                count += 1
+                say "Scanned #{count} users..." if ((count % 100) == 0)
+              end # search
+            end # connections
+          end # users
+        end # export
+      end # gzip
+
+      say "Finished Scanning" 
+      say "Sending to Socialcast" 
+
+      RestClient.log = Logger.new(STDOUT)
+      RestClient.proxy = config["http_proxy"] if config["http_proxy"]
+      url = ['https://', credentials[:domain], '/api/users/provision'].join
+      private_resource = RestClient::Resource.new url, :user => credentials[:username], :password => credentials[:password], :timeout => 660
+      File.open(output_file, 'r') do |file|
+        request_params = {:file => file}
+        request_params[:skip_emails] = "true" if config["skip_emails"]
+        request_params[:test] = "true" if config["test"]
+        private_resource.post request_params
+      end
+
+      File.delete(output_file) if options[:delete_users_file]
+
+      say "Finished"
+    end
+
+    def grab_value(entry)
+      entry.is_a?(Array) ? entry.first : entry
     end
   end
 end
