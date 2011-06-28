@@ -83,17 +83,6 @@ module Socialcast
       end
 
       config = YAML.load_file config_file
-      unless config.has_key? "connections"
-        config["connections"] = [{
-          "ldap_username" => config["ldap_username"],
-          "ldap_pwd" => config["ldap_pwd"],
-          "ldap_host" => config["ldap_host"],
-          "ldap_port" => config["ldap_port"],
-          "basedn" => config["basedn"],
-          "filter" => config["filter"]
-        }]
-      end
-
       required_mappings = %w{email first_name last_name}
       required_mappings.each do |field|
         unless config["mappings"].has_key? field
@@ -101,7 +90,6 @@ module Socialcast
         end
       end
 
-      logger = Logger.new(STDOUT)
       output_file = File.join Dir.pwd, options[:output]
       Zlib::GzipWriter.open(output_file) do |gz|
         xml = Builder::XmlMarkup.new(:target => gz, :indent => 1)
@@ -109,11 +97,11 @@ module Socialcast
         xml.export do |export|
           export.users(:type => "array") do |users|
             config["connections"].each do |connection|
-              say "Connecting to #{connection["ldap_host"]} #{connection["basedn"]}..."
+              say "Connecting to #{connection["host"]} #{connection["basedn"]}..."
 
-              ldap = Net::LDAP.new :host => connection["ldap_host"], :port => connection["ldap_port"], :base => connection["basedn"]
+              ldap = Net::LDAP.new :host => connection["host"], :port => connection["port"], :base => connection["basedn"]
               ldap.encryption connection['encryption'].to_sym if connection['encryption']
-              ldap.auth connection["ldap_username"], connection["ldap_pwd"]
+              ldap.auth connection["username"], connection["password"]
               say "Connected"
               say "Searching..." 
               count = 0
