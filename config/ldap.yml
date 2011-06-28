@@ -1,0 +1,44 @@
+--- 
+#LDAP connection information
+connections:
+  - ldap_username: "cn=Directory Manager"
+    ldap_pwd: "password"
+    ldap_host: ldap.yourdomain.com
+    ldap_port: 389
+    basedn: "ou=smallpeople,ou=qa,dc=socialcast,dc=com"
+    filter: "(mail=*)"
+  - ldap_username: "cn=Directory Manager"
+    ldap_pwd: "password"
+    ldap_host: ldap.yourdomain.com
+    ldap_port: 389
+    basedn: "ou=tinypeople,ou=qa,dc=yourdomain,dc=com"
+    filter: "(mail=*)"
+  - ldap_username: "cn=Directory Manager"
+    ldap_pwd: "password"
+    ldap_host: ldap.yourdomain.com
+    ldap_port: 389
+    basedn: "ou=largepeople,ou=qa,dc=yourdomain,dc=com"
+    filter: "(mail=*)"
+
+#LDAP attribute mappings
+mappings: 
+  first_name: givenName
+  last_name: sn
+  email: mail
+  #only use employee_number if the email is unknown
+  #employee_number: emp_id
+  #only use unique_identifier if you do not wish to use email as the main user identification method
+  #unique_identifier: samaccountname
+
+#Socialcast administrator connection information
+sc_host: socialcast.local
+sc_username: "jennifer@socialcast.com"
+sc_pwd: "password"
+
+delete_users_file: false
+# test being true implies that you wish to skip_emails
+test: true
+skip_emails: true
+
+# Uncomment if you need to connect to Socialcast through a proxy
+#http_proxy: "http://username:password@proxy.company.com:3128"

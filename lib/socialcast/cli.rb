@@ -74,13 +74,15 @@ module Socialcast
     method_option :delete_users_file, :default => true
     def provision
       config_file = File.join Dir.pwd, options[:config]
-      config = YAML.load_file config_file
 
       if options[:setup]
-        # write out default config.yml file
+        create_file config_file do
+          File.read File.join(__FILE__, '..', 'config', 'ldap.yml')
+        end
         return
       end
 
+      config = YAML.load_file config_file
       unless config.has_key? "connections"
         config["connections"] = [{
           "ldap_username" => config["ldap_username"],
