@@ -19,6 +19,7 @@ connections:
     ldap_port: 389
     basedn: "ou=largepeople,ou=qa,dc=yourdomain,dc=com"
     filter: "(mail=*)"
+    encryption: simple_tls
 
 #LDAP attribute mappings
 mappings: 

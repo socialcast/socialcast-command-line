@@ -109,8 +109,10 @@ module Socialcast
         xml.export do |export|
           export.users(:type => "array") do |users|
             config["connections"].each do |connection|
-              say "Connecting to #{connection["ldap_host"]} #{connection["basedn"]}..." 
+              say "Connecting to #{connection["ldap_host"]} #{connection["basedn"]}..."
+
               ldap = Net::LDAP.new :host => connection["ldap_host"], :port => connection["ldap_port"], :base => connection["basedn"]
+              ldap.encryption connection['encryption'].to_sym if connection['encryption']
               ldap.auth connection["ldap_username"], connection["ldap_pwd"]
               say "Connected"
               say "Searching..." 
