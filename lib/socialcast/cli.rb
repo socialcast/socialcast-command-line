@@ -108,19 +108,21 @@ module Socialcast
               ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"]) do |entry|
                 next if grab_value(entry[config["mappings"]["email"]]).blank? || (config["mappings"].has_key?("unique_identifier") && grab_value(entry[config["mappings"]["unique_identifier"]]).blank?)
                 users.user do |user|
-                  %w{unique_identifier first_name last_name employee_number}.each do |attribute|
+                  primary_attributes = %w{unique_identifier first_name last_name employee_number}
+                  primary_attributes.each do |attribute|
                     next unless config['mappings'].has_key?(attribute)
                     user.tag! attribute, grab_value(entry[config["mappings"][attribute]])
                   end
+                  contact_attributes = %w{email location cell_phone office_phone}
                   user.tag! 'contact-info' do |contact_info|
-                    %w{email location cell_phone office_phone}.each do |attribute|
+                   contact_attributes.each do |attribute|
                       next unless config['mappings'].has_key?(attribute)
                       contact_info.tag! attribute, grab_value(entry[config["mappings"][attribute]])
                     end
                   end
+                  custom_attributes = config['mappings'].keys - (primary_attributes + contact_attributes)
                   user.tag! 'custom-fields', :type => "array" do |custom_fields|
-                    %w{title}.each do |attribute|
-                      next unless config['mappings'].has_key?(attribute)
+                    custom_attributes.each do |attribute|
                       custom_fields.tag! 'custom-field' do |custom_field|
                         custom_field.id(attribute)
                         custom_field.value(grab_value(entry[config["mappings"][attribute]]))
