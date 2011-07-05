@@ -68,10 +68,12 @@ module Socialcast
     end
 
     desc 'provision', 'provision users from ldap compatible user repository'
-    method_option :setup, :default => false
     method_option :config, :default => 'ldap.yml', :aliases => '-c'
     method_option :output, :default => 'users.xml.gz', :aliases => '-o'
-    method_option :delete_users_file, :default => true
+    method_option :setup, :type => :boolean
+    method_option :delete_users_file, :type => :boolean
+    method_option :test, :type => :boolean
+    method_option :skip_emails, :type => :boolean
     def provision
       config_file = File.join Dir.pwd, options[:config]
 
@@ -141,18 +143,19 @@ module Socialcast
       say "Finished Scanning" 
       say "Sending to Socialcast" 
 
+      http_config = config.fetch('http', {})
       RestClient.log = Logger.new(STDOUT)
-      RestClient.proxy = config["http_proxy"] if config["http_proxy"]
+      RestClient.proxy = http_config['proxy'] if http_config['proxy']
       url = ['https://', credentials[:domain], '/api/users/provision'].join
       private_resource = RestClient::Resource.new url, :user => credentials[:username], :password => credentials[:password], :timeout => 660
       File.open(output_file, 'r') do |file|
         request_params = {:file => file}
-        request_params[:skip_emails] = "true" if config["skip_emails"]
-        request_params[:test] = "true" if config["test"]
+        request_params[:skip_emails] = 'true' if (config["skip_emails"] || options[:skip_emails])
+        request_params[:test] = 'true' if (config["test"] || options[:test])
         private_resource.post request_params
       end
 
-      File.delete(output_file) if options[:delete_users_file]
+      File.delete(output_file) if (config['delete_users_file'] || options[:delete_users_file])
 
       say "Finished"
     end

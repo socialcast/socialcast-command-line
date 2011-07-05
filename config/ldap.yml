@@ -34,11 +34,14 @@ mappings:
   #only use unique_identifier if you do not wish to use email as the main user identification method
   #unique_identifier: samaccountname
 
-delete_users_file: false
-# test being true implies that you wish to skip_emails
-test: true
-skip_emails: true
+options:
+  # cleanup the user file after run is complete
+  delete_users_file: false
+  # skip sending emails to newly activated users
+  skip_emails: true
+  # test being true implies that you wish to skip_emails
+  test: true
 
-# (optional) http_proxy setting
-# only needed if the script must connect to Socialcast through a proxy
-# http_proxy: "http://username:password@proxy.company.com:3128"
+http:
+  # optional setting if script must connect to Socialcast server through a proxy
+  # proxy: "http://username:password@proxy.company.com:3128"
