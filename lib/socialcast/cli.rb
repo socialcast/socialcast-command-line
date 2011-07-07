@@ -6,6 +6,7 @@ require 'socialcast'
 require 'socialcast/message'
 
 require 'zlib'
+require 'logger'
 require 'builder'
 require 'net/ldap'
 
@@ -17,7 +18,7 @@ module Socialcast
     desc "authenticate", "Authenticate using your Socialcast credentials"
     method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'
     method_option :domain, :type => :string, :default => 'api.socialcast.com', :desc => 'socialcast community domain'
-    method_option :trace, :type => :boolean, :default => false, :aliases => '-v'
+    method_option :trace, :type => :boolean, :aliases => '-v'
     def authenticate
       user = options[:user] || ask('Socialcast username: ')
       password = HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
@@ -27,8 +28,9 @@ module Socialcast
       say "Authenticating #{user} to #{url}"
       params = {:email => user, :password => password }
       resource = RestClient::Resource.new url
+      RestClient.log = Logger.new(STDOUT) if options[:trace]
       response = resource.post params
-      puts "API response: #{response.body.to_s}" if options[:trace]
+      say "API response: #{response.body.to_s}" if options[:trace]
       communities = JSON.parse(response.body.to_s)['communities']
       domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
 
