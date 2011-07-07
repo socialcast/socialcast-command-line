@@ -150,12 +150,12 @@ module Socialcast
       private_resource = RestClient::Resource.new url, :user => credentials[:username], :password => credentials[:password], :timeout => 660
       File.open(output_file, 'r') do |file|
         request_params = {:file => file}
-        request_params[:skip_emails] = 'true' if (config["skip_emails"] || options[:skip_emails])
-        request_params[:test] = 'true' if (config["test"] || options[:test])
+        request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
+        request_params[:test] = 'true' if (config['options']["test"] || options[:test])
         private_resource.post request_params
       end
 
-      File.delete(output_file) if (config['delete_users_file'] || options[:delete_users_file])
+      File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
 
       say "Finished"
     end
