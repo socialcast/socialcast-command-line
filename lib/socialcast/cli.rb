@@ -149,7 +149,7 @@ module Socialcast
       RestClient.log = Logger.new(STDOUT)
       RestClient.proxy = http_config['proxy'] if http_config['proxy']
       url = ['https://', credentials[:domain], '/api/users/provision'].join
-      private_resource = RestClient::Resource.new url, :user => credentials[:username], :password => credentials[:password], :timeout => 660
+      private_resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password], :timeout => http_config['timeout']
       File.open(output_file, 'r') do |file|
         request_params = {:file => file}
         request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
