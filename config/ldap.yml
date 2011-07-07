@@ -1,5 +1,5 @@
 --- 
-# LDAP connection information
+# LDAP connections
 connections:
   example_connection_1:
     username: "cn=Directory Manager"
@@ -24,6 +24,7 @@ connections:
     filter: "(mail=*)"
     encryption: simple_tls
 
+
 # LDAP attribute mappings
 mappings: 
   first_name: givenName
@@ -34,6 +35,8 @@ mappings:
   # only use unique_identifier if you do not wish to use email as the main user identification method
   # unique_identifier: samaccountname
 
+
+# general script options
 options:
   # cleanup the extracted ldap data file after run is complete
   delete_users_file: false
@@ -43,6 +46,8 @@ options:
   # useful during testing
   test: true
 
+
+# http options for connecting to Socialcast servers
 http:
   # optional setting if script must connect to Socialcast server through a proxy
   # proxy: "http://username:password@proxy.company.com:3128"
