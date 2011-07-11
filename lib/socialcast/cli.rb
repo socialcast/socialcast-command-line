@@ -109,14 +109,19 @@ module Socialcast
               say "Connected"
               say "Searching..." 
               count = 0
-              ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"]) do |entry|
+              membership_attribute = config['group_mappings']['attribute_name']
+              attributes = config['mappings'].values
+              attributes << membership_attribute
+              ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
                 next if grab_value(entry[config["mappings"]["email"]]).blank? || (config["mappings"].has_key?("unique_identifier") && grab_value(entry[config["mappings"]["unique_identifier"]]).blank?)
+
                 users.user do |user|
                   primary_attributes = %w{unique_identifier first_name last_name employee_number}
                   primary_attributes.each do |attribute|
                     next unless config['mappings'].has_key?(attribute)
                     user.tag! attribute, grab_value(entry[config["mappings"][attribute]])
                   end
+
                   contact_attributes = %w{email location cell_phone office_phone}
                   user.tag! 'contact-info' do |contact_info|
                    contact_attributes.each do |attribute|
@@ -124,13 +129,23 @@ module Socialcast
                       contact_info.tag! attribute, grab_value(entry[config["mappings"][attribute]])
                     end
                   end
+
                   custom_attributes = config['mappings'].keys - (primary_attributes + contact_attributes)
                   user.tag! 'custom-fields', :type => "array" do |custom_fields|
                     custom_attributes.each do |attribute|
                       custom_fields.tag! 'custom-field' do |custom_field|
                         custom_field.id(attribute)
+                        custom_field.label(attribute)
                         custom_field.value(grab_value(entry[config["mappings"][attribute]]))
                       end
+                    end
+                  end
+
+                  memberships = entry[membership_attribute]
+                  user.tag! 'account-type', 'external' if memberships.include?(config['group_mappings']['external_contributor'])
+                  user.tag! 'roles', :type => 'array' do |roles|
+                    config['group_mappings']['roles'].each_pair do |socialcast_role, ldap_role|
+                      roles.role socialcast_role if entry[membership_attribute].include?(ldap_role)
                     end
                   end
                 end # user

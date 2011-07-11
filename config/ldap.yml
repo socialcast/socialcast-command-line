@@ -36,6 +36,19 @@ mappings:
   # unique_identifier: samaccountname
 
 
+# Map LDAP Group Memberships to Socialcast Permissions
+group_mappings:
+  # configure LDAP field for group memberships (ex: memberof, isMemberOf, etc)
+  attribute_name: memberof
+  account_types:
+    external_contributor: "cn=External,dc=example,dc=com"
+  roles:
+    tenant_admin: "cn=Admins,dc=example,dc=com"
+    sbi_admin: "cn=Admins,dc=example,dc=com"
+    reach_admin: "cn=Admins,dc=example,dc=com"
+    town_hall_admin: "cn=Admins,dc=example,dc=com"
+
+
 # general script options
 options:
   # cleanup the extracted ldap data file after run is complete
