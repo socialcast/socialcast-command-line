@@ -41,7 +41,7 @@ group_mappings:
   # configure LDAP field for group memberships (ex: memberof, isMemberOf, etc)
   attribute_name: memberof
   account_types:
-    external_contributor: "cn=External,dc=example,dc=com"
+    external: "cn=External,dc=example,dc=com"
   roles:
     tenant_admin: "cn=Admins,dc=example,dc=com"
     sbi_admin: "cn=Admins,dc=example,dc=com"

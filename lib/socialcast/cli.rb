@@ -88,11 +88,17 @@ module Socialcast
 
       config = YAML.load_file config_file
       required_mappings = %w{email first_name last_name}
+      mappings = config.fetch 'mappings', {}
       required_mappings.each do |field|
-        unless config["mappings"].has_key? field
+        unless mappings.has_key? field
           fail "Missing required mapping: #{field}"
         end
       end
+
+      permission_mappings = config.fetch 'permission_mappings', {}
+      membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
+      attributes = mappings.values
+      attributes << membership_attribute
 
       output_file = File.join Dir.pwd, options[:output]
       Zlib::GzipWriter.open(output_file) do |gz|
@@ -109,45 +115,42 @@ module Socialcast
               say "Connected"
               say "Searching..." 
               count = 0
-              membership_attribute = config['group_mappings']['attribute_name']
-              attributes = config['mappings'].values
-              attributes << membership_attribute
               ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
-                next if grab_value(entry[config["mappings"]["email"]]).blank? || (config["mappings"].has_key?("unique_identifier") && grab_value(entry[config["mappings"]["unique_identifier"]]).blank?)
+                next if grab_value(entry[mappings["email"]]).blank? || (mappings.has_key?("unique_identifier") && grab_value(entry[mappings["unique_identifier"]]).blank?)
 
                 users.user do |user|
                   primary_attributes = %w{unique_identifier first_name last_name employee_number}
                   primary_attributes.each do |attribute|
-                    next unless config['mappings'].has_key?(attribute)
-                    user.tag! attribute, grab_value(entry[config["mappings"][attribute]])
+                    next unless mappings.has_key?(attribute)
+                    user.tag! attribute, grab_value(entry[mappings[attribute]])
                   end
 
                   contact_attributes = %w{email location cell_phone office_phone}
                   user.tag! 'contact-info' do |contact_info|
                    contact_attributes.each do |attribute|
-                      next unless config['mappings'].has_key?(attribute)
-                      contact_info.tag! attribute, grab_value(entry[config["mappings"][attribute]])
+                      next unless mappings.has_key?(attribute)
+                      contact_info.tag! attribute, grab_value(entry[mappings[attribute]])
                     end
                   end
 
-                  custom_attributes = config['mappings'].keys - (primary_attributes + contact_attributes)
+                  custom_attributes = mappings.keys - (primary_attributes + contact_attributes)
                   user.tag! 'custom-fields', :type => "array" do |custom_fields|
                     custom_attributes.each do |attribute|
                       custom_fields.tag! 'custom-field' do |custom_field|
                         custom_field.id(attribute)
                         custom_field.label(attribute)
-                        custom_field.value(grab_value(entry[config["mappings"][attribute]]))
+                        custom_field.value(grab_value(entry[mappings[attribute]]))
                       end
                     end
                   end
 
                   memberships = entry[membership_attribute]
-                  if memberships.include?(config['group_mappings']['external_contributor'])
+                  if memberships.include?(permission_mappings['account_types']['external'])
                     user.tag! 'account-type', 'external'
                   else
                     user.tag! 'account-type', 'member'
                     user.tag! 'roles', :type => 'array' do |roles|
-                      config['group_mappings']['roles'].each_pair do |socialcast_role, ldap_role|
+                      permission_mappings['roles'].each_pair do |socialcast_role, ldap_role|
                         roles.role socialcast_role if entry[membership_attribute].include?(ldap_role)
                       end
                     end
