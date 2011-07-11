@@ -142,10 +142,14 @@ module Socialcast
                   end
 
                   memberships = entry[membership_attribute]
-                  user.tag! 'account-type', 'external' if memberships.include?(config['group_mappings']['external_contributor'])
-                  user.tag! 'roles', :type => 'array' do |roles|
-                    config['group_mappings']['roles'].each_pair do |socialcast_role, ldap_role|
-                      roles.role socialcast_role if entry[membership_attribute].include?(ldap_role)
+                  if memberships.include?(config['group_mappings']['external_contributor'])
+                    user.tag! 'account-type', 'external'
+                  else
+                    user.tag! 'account-type', 'member'
+                    user.tag! 'roles', :type => 'array' do |roles|
+                      config['group_mappings']['roles'].each_pair do |socialcast_role, ldap_role|
+                        roles.role socialcast_role if entry[membership_attribute].include?(ldap_role)
+                      end
                     end
                   end
                 end # user
