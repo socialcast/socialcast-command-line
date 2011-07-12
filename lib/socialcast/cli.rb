@@ -4,6 +4,7 @@ require 'rest_client'
 require 'highline'
 require 'socialcast'
 require 'socialcast/message'
+require 'socialcast/net_ldap_ext'
 
 require 'zlib'
 require 'logger'
@@ -118,20 +119,20 @@ module Socialcast
               say "Searching..." 
               count = 0
               ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
-                next if grab_value(entry[mappings["email"]]).blank? || (mappings.has_key?("unique_identifier") && grab_value(entry[mappings["unique_identifier"]]).blank?)
+                next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
 
                 users.user do |user|
                   primary_attributes = %w{unique_identifier first_name last_name employee_number}
                   primary_attributes.each do |attribute|
                     next unless mappings.has_key?(attribute)
-                    user.tag! attribute, grab_value(entry[mappings[attribute]])
+                    user.tag! attribute, entry.grab(mappings[attribute])
                   end
 
                   contact_attributes = %w{email location cell_phone office_phone}
                   user.tag! 'contact-info' do |contact_info|
                    contact_attributes.each do |attribute|
                       next unless mappings.has_key?(attribute)
-                      contact_info.tag! attribute, grab_value(entry[mappings[attribute]])
+                      contact_info.tag! attribute, entry.grab(mappings[attribute])
                     end
                   end
 
@@ -139,9 +140,9 @@ module Socialcast
                   user.tag! 'custom-fields', :type => "array" do |custom_fields|
                     custom_attributes.each do |attribute|
                       custom_fields.tag! 'custom-field' do |custom_field|
-                        custom_field.id(attribute)
-                        custom_field.label(attribute)
-                        custom_field.value(grab_value(entry[mappings[attribute]]))
+                        custom_field.id attribute
+                        custom_field.label attribute
+                        custom_field.value entry.grab(mappings[attribute])
                       end
                     end
                   end
