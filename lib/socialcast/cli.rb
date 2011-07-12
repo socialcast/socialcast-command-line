@@ -4,7 +4,7 @@ require 'rest_client'
 require 'highline'
 require 'socialcast'
 require 'socialcast/message'
-require 'socialcast/net_ldap_ext'
+require File.join(File.dirname(__FILE__), 'net_ldap_ext')
 
 require 'zlib'
 require 'logger'
