@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Socialcast::CLI do
   describe '#provision' do
-    context 'with user in external group' do
+    context 'with external group member' do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
