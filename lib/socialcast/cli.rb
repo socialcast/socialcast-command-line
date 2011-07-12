@@ -174,7 +174,7 @@ module Socialcast
       http_config = config.fetch('http', {})
       RestClient.log = Logger.new(STDOUT)
       RestClient.proxy = http_config['proxy'] if http_config['proxy']
-      url = ['http://', credentials[:domain], '/api/users/provision'].join
+      url = ['https://', credentials[:domain], '/api/users/provision'].join
       private_resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password], :timeout => http_config['timeout']
       File.open(output_file, 'r') do |file|
         request_params = {:file => file}
