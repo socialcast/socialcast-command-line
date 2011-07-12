@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'highline', '>= 1.6.2'
   s.add_runtime_dependency 'scashin133-net-ldap', '>= 0.1.4'
   s.add_runtime_dependency 'activeresource', '>= 2.3.11'
-  s.add_development_dependency "rspec-core", '2.6.4'
+  s.add_development_dependency "rspec", '>= 2.6.0'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")

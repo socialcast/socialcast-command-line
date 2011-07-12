@@ -86,6 +86,8 @@ module Socialcast
         return
       end
 
+      fail "Unable to load configuration file: #{config_file}" unless File.exist?(config_file)
+      say "Using configuration file: #{config_file}"
       config = YAML.load_file config_file
       required_mappings = %w{email first_name last_name}
       mappings = config.fetch 'mappings', {}
