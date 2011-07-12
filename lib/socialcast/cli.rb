@@ -118,6 +118,7 @@ module Socialcast
               say "Connected"
               say "Searching..." 
               count = 0
+
               ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
                 next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
 

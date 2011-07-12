@@ -29,15 +29,15 @@ permission_mappings:
     external: "cn=External,dc=example,dc=com"
   roles:
     tenant_admin: "cn=Admins,dc=example,dc=com"
-    sbi_admin: "cn=Admins,dc=example,dc=com"
-    reach_admin: "cn=Admins,dc=example,dc=com"
-    town_hall_admin: "cn=Admins,dc=example,dc=com"
+    sbi_admin: "cn=SbiAdmins,dc=example,dc=com"
+    reach_admin: "cn=ReachAdmins,dc=example,dc=com"
+    town_hall_admin: "cn=TownHallAdmins,dc=example,dc=com"
 
 
 # general script options
 options:
   # cleanup the extracted ldap data file after run is complete
-  delete_users_file: true
+  delete_users_file: false
   # skip sending emails to newly activated users
   skip_emails: true
   # do not actually provision accounts
