@@ -37,7 +37,7 @@ permission_mappings:
 # general script options
 options:
   # cleanup the extracted ldap data file after run is complete
-  delete_users_file: false
+  delete_users_file: true
   # skip sending emails to newly activated users
   skip_emails: true
   # do not actually provision accounts

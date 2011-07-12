@@ -1,9 +1,14 @@
 require 'rubygems'
 require 'bundler/setup'
 
+require 'rspec/mocks'
+RSpec::Mocks::setup(Object.new)
+
 require 'socialcast/cli'
 
 RSpec.configure do |config|
+  config.mock_with :rspec
+
   def capture_with_status(stream)
     exit_status = 0
     begin
