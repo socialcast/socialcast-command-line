@@ -149,13 +149,16 @@ module Socialcast
                   end
 
                   memberships = entry[membership_attribute]
-                  if memberships.include?(permission_mappings['account_types']['external'])
+                  external_ldap_group = permission_mappings.fetch('account_types', {})['external']
+                  if external_ldap_group && memberships.include?(external_ldap_group)
                     user.tag! 'account-type', 'external'
                   else
                     user.tag! 'account-type', 'member'
-                    user.tag! 'roles', :type => 'array' do |roles|
-                      permission_mappings['roles'].each_pair do |socialcast_role, ldap_role|
-                        roles.role socialcast_role if entry[membership_attribute].include?(ldap_role)
+                    if permission_roles_mappings = permission_mappings['roles']
+                      user.tag! 'roles', :type => 'array' do |roles|
+                        permission_roles_mappings.each_pair do |socialcast_role, ldap_group|
+                          roles.role socialcast_role if entry[membership_attribute].include?(ldap_group)
+                        end
                       end
                     end
                   end
