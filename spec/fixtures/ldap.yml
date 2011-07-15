@@ -48,6 +48,3 @@ options:
 # http options for connecting to Socialcast servers
 http:
   timeout: 660
-  # optional setting if script must connect to Socialcast server through a proxy
-  # proxy: "http://username:password@proxy.company.com:3128"
-
