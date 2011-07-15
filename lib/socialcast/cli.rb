@@ -1,3 +1,5 @@
+require 'rubygems'
+
 require "thor"
 require 'json'
 require 'rest_client'
@@ -14,12 +16,14 @@ require 'net/ldap'
 module Socialcast
   class CLI < Thor
     include Thor::Actions
-    include Socialcast
+
+    method_option :trace, :type => :boolean, :aliases => '-v'
+    def initialize(*args); super(*args) end
 
     desc "authenticate", "Authenticate using your Socialcast credentials"
     method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'
-    method_option :domain, :type => :string, :default => 'api.socialcast.com', :desc => 'socialcast community domain'
-    method_option :trace, :type => :boolean, :aliases => '-v'
+    method_option :domain, :type => :string, :default => 'api.socialcast.com', :desc => 'Socialcast community domain'
+    method_option :proxy, :type => :string, :desc => 'HTTP proxy options for connecting to Socialcast server'
     def authenticate
       user = options[:user] || ask('Socialcast username: ')
       password = HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
@@ -28,19 +32,20 @@ module Socialcast
       url = ['https://', domain, '/api/authentication.json'].join
       say "Authenticating #{user} to #{url}"
       params = {:email => user, :password => password }
-      resource = RestClient::Resource.new url
       RestClient.log = Logger.new(STDOUT) if options[:trace]
+      RestClient.proxy = options[:proxy] if options[:proxy]
+      resource = RestClient::Resource.new url
       response = resource.post params
       say "API response: #{response.body.to_s}" if options[:trace]
       communities = JSON.parse(response.body.to_s)['communities']
       domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
 
-      save_credentials :user => user, :password => password, :domain => domain
+      Socialcast.credentials = {:user => user, :password => password, :domain => domain, :proxy => options[:proxy]}
       say "Authentication successful for #{domain}"
     end
 
     desc "share MESSAGE", "Posts a new message into socialcast"
-    method_option :url, :type => :string
+    method_option :url, :type => :string, :desc => '(optional) url to associate to the message'
     method_option :attachments, :type => :array, :default => []
     def share(message = nil)
       message ||= $stdin.read_nonblock(100_000) rescue nil
@@ -48,10 +53,9 @@ module Socialcast
       attachment_ids = []
       options[:attachments].each do |path|
         Dir[File.expand_path(path)].each do |attachment|
-          attachment_url = ['https://', credentials[:domain], '/api/attachments.json'].join
           say "Uploading attachment #{attachment}..."
-          attachment_uploader = RestClient::Resource.new attachment_url, :user => credentials[:user], :password => credentials[:password]
-          attachment_uploader.post :attachment => File.new(attachment) do |response, request, result|
+          uploader = Socialcast.resource_for_path '/api/attachments.json', {}, options[:trace]
+          uploader.post :attachment => File.new(attachment) do |response, request, result|
             if response.code == 201
               attachment_ids << JSON.parse(response.body)['attachment']['id']
             else
@@ -61,10 +65,7 @@ module Socialcast
         end
       end
 
-      Socialcast::Message.site = ['https://', credentials[:domain], '/api'].join
-      Socialcast::Message.user = credentials[:user]
-      Socialcast::Message.password = credentials[:password]
-
+      Socialcast::Message.configure_from_credentials
       Socialcast::Message.create :body => message, :url => options[:url], :attachment_ids => attachment_ids
 
       say "Message has been shared"
@@ -175,15 +176,12 @@ module Socialcast
       say "Sending to Socialcast" 
 
       http_config = config.fetch('http', {})
-      RestClient.log = Logger.new(STDOUT)
-      RestClient.proxy = http_config['proxy'] if http_config['proxy']
-      url = ['https://', credentials[:domain], '/api/users/provision'].join
-      private_resource = RestClient::Resource.new url, :user => credentials[:user], :password => credentials[:password], :timeout => http_config['timeout']
+      resource = Socialcast.resource_for_path '/api/users/provision', http_config
       File.open(output_file, 'r') do |file|
         request_params = {:file => file}
         request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
         request_params[:test] = 'true' if (config['options']["test"] || options[:test])
-        private_resource.post request_params
+        resource.post request_params
       end
 
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
