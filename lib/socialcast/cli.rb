@@ -22,11 +22,12 @@ module Socialcast
 
     desc "authenticate", "Authenticate using your Socialcast credentials"
     method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'
+    method_option :password, :type => :string, :aliases => '-p', :desc => 'password for the authenticated user'
     method_option :domain, :type => :string, :default => 'api.socialcast.com', :desc => 'Socialcast community domain'
     method_option :proxy, :type => :string, :desc => 'HTTP proxy options for connecting to Socialcast server'
     def authenticate
       user = options[:user] || ask('Socialcast username: ')
-      password = HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
+      password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
       domain = options[:domain]
 
       url = ['https://', domain, '/api/authentication.json'].join
