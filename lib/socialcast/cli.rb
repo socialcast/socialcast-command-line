@@ -80,7 +80,7 @@ module Socialcast
     method_option :test, :type => :boolean
     method_option :skip_emails, :type => :boolean
     def provision
-      config_file = File.join Dir.pwd, options[:config]
+      config_file = File.expand_path options[:config]
 
       if options[:setup]
         create_file config_file do
@@ -105,6 +105,7 @@ module Socialcast
       attributes = mappings.values
       attributes << membership_attribute
 
+			count = 0
       output_file = File.join Dir.pwd, options[:output]
       Zlib::GzipWriter.open(output_file) do |gz|
         xml = Builder::XmlMarkup.new(:target => gz, :indent => 1)
@@ -112,14 +113,12 @@ module Socialcast
         xml.export do |export|
           export.users(:type => "array") do |users|
             config["connections"].each_pair do |key, connection|
-              say "Connecting to #{key} at #{[connection["host"], connection["port"]].join(':')} with filter #{connection["basedn"]}"
+              say "Connecting to #{key} at #{[connection["host"], connection["port"]].join(':')}"
 
               ldap = Net::LDAP.new :host => connection["host"], :port => connection["port"], :base => connection["basedn"]
               ldap.encryption connection['encryption'].to_sym if connection['encryption']
               ldap.auth connection["username"], connection["password"]
-              say "Connected"
-              say "Searching..." 
-              count = 0
+              say "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
 
               ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
                 next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
@@ -128,16 +127,15 @@ module Socialcast
                   entry.build_xml_from_mappings user, mappings, permission_mappings
                 end
                 count += 1
-                say "Scanned #{count} users..." if ((count % 100) == 0)
+                say "Scanned #{count} users" if ((count % 100) == 0)
               end # search
             end # connections
           end # users
         end # export
       end # gzip
+      say "Finished scanning #{count} users"
 
-      say "Finished Scanning" 
-      say "Sending to Socialcast" 
-
+      say "Uploading dataset to Socialcast..."
       http_config = config.fetch('http', {})
       resource = Socialcast.resource_for_path '/api/users/provision', http_config
       File.open(output_file, 'r') do |file|
@@ -146,10 +144,9 @@ module Socialcast
         request_params[:test] = 'true' if (config['options']["test"] || options[:test])
         resource.post request_params
       end
+      say "Finished"
 
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
-
-      say "Finished"
     end
   end
 end
