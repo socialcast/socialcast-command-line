@@ -36,7 +36,7 @@ class Net::LDAP::Entry
 
     membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
     memberships = self[membership_attribute]
-    external_ldap_groups = [permission_mappings.fetch('account_types', {})['external']].compact.flatten
+    external_ldap_groups = Array.wrap(permission_mappings.fetch('account_types', {})['external'])
     if external_ldap_groups.any? { |external_ldap_group| memberships.include?(external_ldap_group) }
       user.tag! 'account-type', 'external'
     else
@@ -44,7 +44,7 @@ class Net::LDAP::Entry
       if permission_roles_mappings = permission_mappings['roles']
         user.tag! 'roles', :type => 'array' do |roles|
           permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
-            [ldap_groups].flatten.each do |ldap_group|
+            Array.wrap(ldap_groups).each do |ldap_group|
               if memberships.include?(ldap_group)
                 roles.role socialcast_role
                 break
