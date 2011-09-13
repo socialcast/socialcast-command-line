@@ -1,5 +1,6 @@
 require 'yaml'
 require 'fileutils'
+require File.join(File.dirname(__FILE__), 'ext', 'array_ext') unless Array.respond_to?(:wrap)
 
 module Socialcast
   class << self
