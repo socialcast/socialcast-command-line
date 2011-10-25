@@ -1,6 +1,34 @@
 require 'spec_helper'
 
 describe Socialcast::CLI do
+  describe '#share' do
+    context 'with a basic message' do
+      before do
+        @response = RestClient::Resource.any_instance.stub(:post)
+        
+        Socialcast::CLI.start ['share', 'testing']
+      end
+      it 'should send a POST with a message body of "testing"' do
+        #should assert that a POST occurs from RestClient
+        #@response.should be_created
+        #inspect request params here
+      end
+    end
+    
+    context 'with a message_type message' do
+      before do
+        @response = RestClient::Resource.any_instance.stub(:post)
+        
+        Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
+      end
+      it 'should send a POST with a message body of "please review" and message_type of "review_request"' do
+        #should assert that a POST occurs from RestClient
+        #@response.should be_created
+        #inspect request params here
+      end
+    end
+  end
+  
   describe '#provision' do
     context 'with absolute path to ldap.yml file' do
       before do

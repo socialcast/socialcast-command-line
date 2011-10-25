@@ -47,6 +47,7 @@ module Socialcast
 
     desc "share MESSAGE", "Posts a new message into socialcast"
     method_option :url, :type => :string, :desc => '(optional) url to associate to the message'
+    method_option :message_type, :type => :string, :desc => '(optional) force an alternate message_type'
     method_option :attachments, :type => :array, :default => []
     def share(message = nil)
       message ||= $stdin.read_nonblock(100_000) rescue nil
@@ -67,7 +68,7 @@ module Socialcast
       end
 
       Socialcast::Message.configure_from_credentials
-      Socialcast::Message.create :body => message, :url => options[:url], :attachment_ids => attachment_ids
+      Socialcast::Message.create :body => message, :url => options[:url], :message_type => options[:message_type], :attachment_ids => attachment_ids
 
       say "Message has been shared"
     end
