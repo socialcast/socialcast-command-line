@@ -2,31 +2,36 @@ require 'spec_helper'
 
 describe Socialcast::CLI do
   describe '#share' do
+    
+    # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        @response = RestClient::Resource.any_instance.stub(:post)
+        stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
+                 with(:body => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<message>\n  <message-type type=\"yaml\" nil=\"true\"></message-type>\n  <body>testing</body>\n  <url type=\"yaml\" nil=\"true\"></url>\n  <attachment-ids type=\"array\"/>\n</message>\n",
+                      :headers => {'Accept'=>'*/*', 'Content-Type'=>'application/xml'}).
+                 to_return(:status => 200, :body => "", :headers => {})
         
         Socialcast::CLI.start ['share', 'testing']
       end
       it 'should send a POST with a message body of "testing"' do
-        #should assert that a POST occurs from RestClient
-        #@response.should be_created
-        #inspect request params here
+        # See expectations
       end
     end
     
     context 'with a message_type message' do
       before do
-        @response = RestClient::Resource.any_instance.stub(:post)
+        stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
+                 with(:body => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<message>\n  <message-type>review_request</message-type>\n  <body>please review</body>\n  <url type=\"yaml\" nil=\"true\"></url>\n  <attachment-ids type=\"array\"/>\n</message>\n",
+                      :headers => {'Accept'=>'*/*', 'Content-Type'=>'application/xml'}).
+                 to_return(:status => 200, :body => "", :headers => {})
         
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
       end
       it 'should send a POST with a message body of "please review" and message_type of "review_request"' do
-        #should assert that a POST occurs from RestClient
-        #@response.should be_created
-        #inspect request params here
+        # See expectations
       end
     end
+    
   end
   
   describe '#provision' do

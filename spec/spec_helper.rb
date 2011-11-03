@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'bundler/setup'
-
+require 'webmock/rspec'
 require 'rspec/mocks'
 RSpec::Mocks::setup(Object.new)
 
