@@ -7,13 +7,12 @@ describe Socialcast::CLI do
     context 'with a basic message' do
       before do
         stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
-                 with(:body => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<message>\n  <message-type type=\"yaml\" nil=\"true\"></message-type>\n  <body>testing</body>\n  <url type=\"yaml\" nil=\"true\"></url>\n  <attachment-ids type=\"array\"/>\n</message>\n",
-                      :headers => {'Accept'=>'*/*', 'Content-Type'=>'application/xml'}).
+                 with(:body => /<message-type.*nil="true">.*testing/m).
                  to_return(:status => 200, :body => "", :headers => {})
         
         Socialcast::CLI.start ['share', 'testing']
       end
-      it 'should send a POST with a message body of "testing"' do
+      it 'should send a POST with a message body of "testing" and nil message-type' do
         # See expectations
       end
     end
@@ -21,8 +20,7 @@ describe Socialcast::CLI do
     context 'with a message_type message' do
       before do
         stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
-                 with(:body => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<message>\n  <message-type>review_request</message-type>\n  <body>please review</body>\n  <url type=\"yaml\" nil=\"true\"></url>\n  <attachment-ids type=\"array\"/>\n</message>\n",
-                      :headers => {'Accept'=>'*/*', 'Content-Type'=>'application/xml'}).
+                 with(:body => /<message-type>review_request<\/message-type>.*please review/m).
                  to_return(:status => 200, :body => "", :headers => {})
         
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
