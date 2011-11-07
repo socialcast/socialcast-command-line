@@ -1,6 +1,37 @@
 require 'spec_helper'
 
 describe Socialcast::CLI do
+  describe '#share' do
+    
+    # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
+    context 'with a basic message' do
+      before do
+        stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
+                 with(:body => /<message-type.*nil="true">.*testing/m).
+                 to_return(:status => 200, :body => "", :headers => {})
+        
+        Socialcast::CLI.start ['share', 'testing']
+      end
+      it 'should send a POST with a message body of "testing" and nil message-type' do
+        # See expectations
+      end
+    end
+    
+    context 'with a message_type message' do
+      before do
+        stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
+                 with(:body => /<message-type>review_request<\/message-type>.*please review/m).
+                 to_return(:status => 200, :body => "", :headers => {})
+        
+        Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
+      end
+      it 'should send a POST with a message body of "please review" and message_type of "review_request"' do
+        # See expectations
+      end
+    end
+    
+  end
+  
   describe '#provision' do
     context 'with absolute path to ldap.yml file' do
       before do
