@@ -22,6 +22,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'activeresource', '>= 2.3.11'
   s.add_development_dependency "rspec", '>= 2.6.0'
   s.add_development_dependency "webmock", '>= 1.7.7'
+  s.add_development_dependency 'rake', '0.9.2.2'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
