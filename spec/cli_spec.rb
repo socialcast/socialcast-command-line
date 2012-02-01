@@ -6,8 +6,10 @@ describe Socialcast::CLI do
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
-                 with(:body => /<message-type.*nil="true">.*testing/m).
+        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
+                 with(:body => /message\_type\"\:null/).
+                 with(:body => /testing/).
                  to_return(:status => 200, :body => "", :headers => {})
         
         Socialcast::CLI.start ['share', 'testing']
@@ -19,8 +21,10 @@ describe Socialcast::CLI do
     
     context 'with a message_type message' do
       before do
-        stub_request(:post, "https://emily%40socialcast.com:demo@demo.socialcast.com/api/messages.xml").
-                 with(:body => /<message-type>review_request<\/message-type>.*please review/m).
+        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
+                 with(:body => /message\_type\"\:review\_request/).
+                 with(:body => /please\sreview/).
                  to_return(:status => 200, :body => "", :headers => {})
         
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
@@ -192,6 +196,29 @@ describe Socialcast::CLI do
       it 'adds sbi_admin role' do
         @result.should =~ %r{<role>sbi_admin</role>}
       end
+    end
+  end
+  context 'with ldap.yml configuration including template value' do
+    before do
+      @entry = Net::LDAP::Entry.new("dc=example,dc=com")
+      @entry[:mail] = 'ryan@example.com'
+      @entry[:l] = 'San Francisco'
+      @entry[:co] = 'USA'
+
+      Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+
+      @result = ''
+      Zlib::GzipWriter.stub(:open).and_yield(@result)
+      File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_interpolated_values.yml')))
+      File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+      File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+
+      RestClient::Resource.any_instance.stub(:post)
+
+      Socialcast::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml']
+    end
+    it 'formats l and co according to template' do
+      @result.should =~ %r{<location>San Francisco, USA</location>}
     end
   end
 end
