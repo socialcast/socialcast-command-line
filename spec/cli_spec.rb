@@ -46,10 +46,11 @@ describe Socialcast::CLI do
         File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.should_not_receive(:post)
+        Kernel.should_receive(:abort).once
 
         Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml']
       end
-      it 'does not post to Socialcast' do end # see expectations
+      it 'does not post to Socialcast and throws Kernel.abort' do end # see expectations
     end
     context 'with 0 users found in ldap and force option passed' do
       before do

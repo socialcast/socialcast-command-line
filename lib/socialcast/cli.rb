@@ -137,7 +137,9 @@ module Socialcast
       end # gzip
       say "Finished scanning #{count} users"
 
-      if options[:force] || count > 0
+      if count == 0 && !options[:force]
+        Kernel.abort("Skipping upload to Socialcast since no users were found")
+      else
         say "Uploading dataset to Socialcast..."
         http_config = config.fetch('http', {})
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
@@ -148,8 +150,6 @@ module Socialcast
           resource.post request_params
         end
         say "Finished"
-      else
-        say "Skipping upload to Socialcast since no users were found"
       end
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
     end
