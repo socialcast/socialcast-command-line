@@ -65,10 +65,11 @@ describe Socialcast::CLI do
         File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.should_receive(:post).once
+        Kernel.should_not_receive(:abort)
 
         Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '-f']
       end
-      it 'does post to Socialcast' do end # see expectations
+      it 'does post to Socialcast and does not call Kernel.abort' do end # see expectations
     end
     context 'with absolute path to ldap.yml file' do
       before do
