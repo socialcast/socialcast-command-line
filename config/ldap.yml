@@ -34,6 +34,15 @@ mappings:
   # employee_number: emp_id
   # only use unique_identifier if you do not wish to use email as the main user identification method
   # unique_identifier: samaccountname
+  # To combine multiple ldap attributes into one Socialcast attribute use the following pattern
+  # The key is the socialcast attribute and the value is a hash.  The hash requires a key of value
+  # which will use the other keys to interpolate the values.
+  # location:
+  #   value: "%{city}, %{state} %{zip}"
+  #   city: city
+  #   state: state
+  #   zip: zipcode
+  
 
 
 # Map LDAP Group Memberships to Socialcast Permissions

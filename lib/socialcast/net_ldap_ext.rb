@@ -5,7 +5,13 @@ class Net::LDAP::Entry
   # grab a *single* value of an attribute
   # abstracts away ldap multivalue attributes
   def grab(attribute)
-    Array.wrap(self[attribute]).compact.first
+    case attribute
+    when Hash
+      value = attribute.delete("value")
+      value % Hash[attribute.map {|k,v| [k, grab(v)]}].symbolize_keys
+    else
+      Array.wrap(self[attribute]).compact.first
+    end
   end
 
   def build_xml_from_mappings(user, mappings = {}, permission_mappings = {})
