@@ -80,6 +80,7 @@ module Socialcast
     method_option :delete_users_file, :type => :boolean
     method_option :test, :type => :boolean
     method_option :skip_emails, :type => :boolean
+    method_option :force, :type => :boolean, :aliases => '-f', :default => false
     def provision
       config_file = File.expand_path options[:config]
 
@@ -136,17 +137,20 @@ module Socialcast
       end # gzip
       say "Finished scanning #{count} users"
 
-      say "Uploading dataset to Socialcast..."
-      http_config = config.fetch('http', {})
-      resource = Socialcast.resource_for_path '/api/users/provision', http_config
-      File.open(output_file, 'r') do |file|
-        request_params = {:file => file}
-        request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
-        request_params[:test] = 'true' if (config['options']["test"] || options[:test])
-        resource.post request_params
+      if options[:force] || count > 0
+        say "Uploading dataset to Socialcast..."
+        http_config = config.fetch('http', {})
+        resource = Socialcast.resource_for_path '/api/users/provision', http_config
+        File.open(output_file, 'r') do |file|
+          request_params = {:file => file}
+          request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
+          request_params[:test] = 'true' if (config['options']["test"] || options[:test])
+          resource.post request_params
+        end
+        say "Finished"
+      else
+        say "Skipping upload to Socialcast since no users were found"
       end
-      say "Finished"
-
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
     end
   end

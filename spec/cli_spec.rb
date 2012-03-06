@@ -33,6 +33,42 @@ describe Socialcast::CLI do
   end
   
   describe '#provision' do
+    context 'with 0 users found in ldap' do
+      before do
+        Net::LDAP.any_instance.stub(:search).and_return(nil)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        
+        File.should_receive(:open).with('/my/path/to/ldap.yml').and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+
+        RestClient::Resource.any_instance.should_not_receive(:post)
+
+        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml']
+      end
+      it 'does not post to Socialcast' do end # see expectations
+    end
+    context 'with 0 users found in ldap and force option passed' do
+      before do
+        Net::LDAP.any_instance.stub(:search).and_return(nil)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        
+        File.should_receive(:open).with('/my/path/to/ldap.yml').and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+
+        RestClient::Resource.any_instance.should_receive(:post).once
+
+        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '-f']
+      end
+      it 'does post to Socialcast' do end # see expectations
+    end
     context 'with absolute path to ldap.yml file' do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
