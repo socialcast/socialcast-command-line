@@ -1,6 +1,9 @@
 require 'spec_helper'
 
 describe Socialcast::CLI do
+  before do
+    File.stub(:exists?).with(/credentials.yml/).and_return(true)
+  end
   describe '#share' do
     
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
