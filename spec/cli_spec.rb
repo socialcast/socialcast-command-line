@@ -1,15 +1,12 @@
 require 'spec_helper'
 
 describe Socialcast::CLI do
-  before do
-    File.stub(:exists?).with(/credentials.yml/).and_return(true)
-  end
   describe '#share' do
     
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
@@ -24,7 +21,7 @@ describe Socialcast::CLI do
     
     context 'with a message_type message' do
       before do
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
@@ -46,11 +43,10 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.should_receive(:open).with('/my/path/to/ldap.yml').and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
         File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.should_not_receive(:post)
         Kernel.should_receive(:abort).once
@@ -65,11 +61,10 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.should_receive(:open).with('/my/path/to/ldap.yml').and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
         File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.should_receive(:post).once
         Kernel.should_not_receive(:abort)
@@ -86,11 +81,10 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.should_receive(:open).with('/my/path/to/ldap.yml').and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
         File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         RestClient::Resource.any_instance.stub(:post)
 
         Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml']
@@ -106,9 +100,9 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.stub(:post)
 
@@ -128,9 +122,9 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.stub(:post)
 
@@ -150,9 +144,9 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_array_permission_mapping.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.stub(:post)
 
@@ -173,9 +167,9 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.stub(:post)
 
@@ -198,9 +192,9 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_array_permission_mapping.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.stub(:post)
 
@@ -223,9 +217,9 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_array_permission_mapping.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
         RestClient::Resource.any_instance.stub(:post)
 
@@ -250,9 +244,9 @@ describe Socialcast::CLI do
 
       @result = ''
       Zlib::GzipWriter.stub(:open).and_yield(@result)
+      Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
       File.stub(:open).with(/ldap.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_interpolated_values.yml')))
       File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-      File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
 
       RestClient::Resource.any_instance.stub(:post)
 
