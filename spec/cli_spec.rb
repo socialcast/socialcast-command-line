@@ -2,11 +2,10 @@ require 'spec_helper'
 
 describe Socialcast::CLI do
   describe '#share' do
-    
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
@@ -21,7 +20,7 @@ describe Socialcast::CLI do
     
     context 'with a message_type message' do
       before do
-        File.stub(:open).with(/credentials.yml/).and_yield(File.read(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
@@ -30,6 +29,20 @@ describe Socialcast::CLI do
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
       end
       it 'should send a POST with a message body of "please review" and message_type of "review_request"' do
+        # See expectations
+      end
+    end
+    context "with a proxy" do
+      before do
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials_with_proxy.yml')))
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
+                 with(:body => /message\_type\"\:null/).
+                 with(:body => /testing/).
+                 to_return(:status => 200, :body => "", :headers => {})
+        
+        Socialcast::CLI.start ['share', 'testing']
+      end
+      it 'should send a POST with a message body of "testing" and nil message-type' do
         # See expectations
       end
     end
