@@ -1,3 +1,4 @@
+[![Build Status](https://secure.travis-ci.org/socialcast/socialcast-command-line.png?branch=master)](http://travis-ci.org/socialcast/socialcast-command-line)
 # socialcast-command-line
 
 command line interface to the Socialcast API
