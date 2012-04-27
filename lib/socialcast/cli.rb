@@ -13,6 +13,20 @@ require 'logger'
 require 'builder'
 require 'net/ldap'
 
+# uncomment to debug HTTP traffic
+# class ActiveResource::Connection
+#   def configure_http(http)
+#     http = apply_ssl_options(http)
+#     # Net::HTTP timeouts default to 60 seconds.
+#     if @timeout
+#       http.open_timeout = @timeout
+#       http.read_timeout = @timeout
+#     end
+#     http.set_debug_output STDOUT
+#     http
+#   end
+# end
+
 module Socialcast
   class CLI < Thor
     include Thor::Actions
@@ -49,6 +63,7 @@ module Socialcast
     method_option :url, :type => :string, :desc => '(optional) url to associate to the message'
     method_option :message_type, :type => :string, :desc => '(optional) force an alternate message_type'
     method_option :attachments, :type => :array, :default => []
+    method_option :group_id, :type => :numeric, :desc => "(optional) ID of group to post into"
     def share(message = nil)
       message ||= $stdin.read_nonblock(100_000) rescue nil
 
@@ -67,8 +82,9 @@ module Socialcast
         end
       end
 
+      ActiveResource::Base.logger = Logger.new(STDOUT) if options[:trace]
       Socialcast::Message.configure_from_credentials
-      Socialcast::Message.create :body => message, :url => options[:url], :message_type => options[:message_type], :attachment_ids => attachment_ids
+      Socialcast::Message.create :body => message, :url => options[:url], :message_type => options[:message_type], :attachment_ids => attachment_ids, :group_id => options[:group_id]
 
       say "Message has been shared"
     end
