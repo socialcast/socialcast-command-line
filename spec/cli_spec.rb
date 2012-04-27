@@ -32,6 +32,19 @@ describe Socialcast::CLI do
         # See expectations
       end
     end
+    context 'with a group_id param' do
+      before do
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
+                 with(:body => /group\_id\"\:123/).
+                 to_return(:status => 200, :body => "", :headers => {})
+        
+        Socialcast::CLI.start ['share', 'hi', '--group_id=123']
+      end
+      it 'should send a POST with group_id param == 123' do
+        # See expectations
+      end
+    end
     context "with a proxy" do
       before do
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials_with_proxy.yml')))
