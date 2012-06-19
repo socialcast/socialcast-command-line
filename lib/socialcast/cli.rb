@@ -159,7 +159,7 @@ module Socialcast
         say "Uploading dataset to Socialcast..."
         http_config = config.fetch('http', {})
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
-        File.open(output_file) do |file|
+        File.open(output_file, 'r:utf-8') do |file|
           request_params = {:file => file}
           request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
           request_params[:test] = 'true' if (config['options']["test"] || options[:test])
