@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'json', '>= 1.4.6'
   s.add_runtime_dependency 'thor', '>= 0.14.6'
   s.add_runtime_dependency 'highline', '>= 1.6.2'
-  s.add_runtime_dependency 'socialcast-net-ldap', '>= 0.1.5'
+  s.add_runtime_dependency 'socialcast-net-ldap', '>= 0.1.6'
   s.add_runtime_dependency 'activeresource', '>= 2.3.11'
   s.add_development_dependency "rspec", '>= 2.6.0'
   s.add_development_dependency "webmock", '>= 1.7.7'
