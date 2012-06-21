@@ -106,10 +106,12 @@ module Socialcast
         end
         return
       end
-
+      
       fail "Unable to load configuration file: #{config_file}" unless File.exists?(config_file)
       say "Using configuration file: #{config_file}"
-      config = YAML.load_file config_file
+      
+      config = load_configuration config_file
+
       required_mappings = %w{email first_name last_name}
       mappings = config.fetch 'mappings', {}
       required_mappings.each do |field|
@@ -169,5 +171,12 @@ module Socialcast
       end
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
     end
+  
+    no_tasks do
+      def load_configuration(path)
+        YAML.load_file path
+      end
+    end
+    
   end
 end
