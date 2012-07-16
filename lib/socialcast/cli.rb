@@ -144,7 +144,7 @@ module Socialcast
                 next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
 
                 users.user do |user|
-                  entry.build_xml_from_mappings user, mappings, permission_mappings
+                  entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
                 end
                 count += 1
                 say "Scanned #{count} users" if ((count % 100) == 0)

@@ -13,8 +13,15 @@ class Net::LDAP::Entry
       Array.wrap(self[attribute]).compact.first
     end
   end
+  
+  def dereference_mail(ldap_connection, dn_field, mail_attribute)
+    dn = grab(dn_field)
+    ldap_connection.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |entry|
+      return entry.grab(mail_attribute)
+    end
+  end
 
-  def build_xml_from_mappings(user, mappings = {}, permission_mappings = {})
+  def build_xml_from_mappings(user, ldap_connection, mappings = {}, permission_mappings = {})
     primary_attributes = %w{unique_identifier first_name last_name employee_number}
     primary_attributes.each do |attribute|
       next unless mappings.has_key?(attribute)
@@ -33,9 +40,15 @@ class Net::LDAP::Entry
     user.tag! 'custom-fields', :type => "array" do |custom_fields|
       custom_attributes.each do |attribute|
         custom_fields.tag! 'custom-field' do |custom_field|
-          custom_field.id attribute
-          custom_field.label attribute
-          custom_field.value grab(mappings[attribute])
+          if attribute == 'manager'
+            custom_field.id 'manager_email'
+            custom_field.label 'manager_email'
+            custom_field.value dereference_mail(ldap_connection, mappings[attribute], mappings['email'])
+          else
+            custom_field.id attribute
+            custom_field.label attribute
+            custom_field.value grab(mappings[attribute])
+          end
         end
       end
     end

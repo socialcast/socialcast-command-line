@@ -288,4 +288,26 @@ describe Socialcast::CLI do
       @result.should =~ %r{<location>San Francisco, USA</location>}
     end
   end
+  context 'with ldap.yml configuration including manager attribute mapping' do
+    before do
+      @entry = Net::LDAP::Entry.new("dc=example,dc=com")
+      @entry[:mail] = 'ryan@example.com'
+      @entry[:manager] = 'ryan'
+
+      Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+
+      @result = ''
+      Zlib::GzipWriter.stub(:open).and_yield(@result)
+      Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+      Socialcast::CLI.any_instance.should_receive(:load_configuration).with(/ldap.yml/).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_manager_attribute.yml')))
+      File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+
+      RestClient::Resource.any_instance.stub(:post)
+
+      Socialcast::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml']
+    end
+    it 'adds a manager_email entry of ryan@example.com' do
+      @result.should =~ %r{<label>manager_email</label>\s*<value>ryan@example.com</value>}
+    end
+  end
 end

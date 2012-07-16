@@ -1,0 +1,36 @@
+--- 
+# LDAP connections
+connections:
+  example_connection_1:
+    username: "cn=Directory Manager"
+    password: "test"
+    host: localhost
+    port: 1389
+    basedn: "dc=example,dc=com"
+    filter: "(mail=*)"
+
+
+# LDAP attribute mappings
+mappings: 
+  first_name: givenName
+  last_name: sn
+  email: mail
+  manager: manager
+
+# general script options
+options:
+  # cleanup the extracted ldap data file after run is complete
+  delete_users_file: false
+  # skip sending emails to newly activated users
+  skip_emails: true
+  # do not actually provision accounts
+  # useful during testing
+  test: true
+
+
+# http options for connecting to Socialcast servers
+http:
+  timeout: 660
+  # optional setting if script must connect to Socialcast server through a proxy
+  # proxy: "http://username:password@proxy.company.com:3128"
+
