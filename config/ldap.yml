@@ -42,6 +42,15 @@ mappings:
   #   city: city
   #   state: state
   #   zip: zipcode
+  # To populate the Socialcast org chart functionality you have two options.
+  # If using AD you will most likely need to use the manager option. It works
+  # by doing a second ldap query to find the user whose identifier is being
+  # mapped for the given user.
+  # manager: manager
+  # There is also the manager_email option which assumes that the attribute being
+  # mapped is the manager's email address. No additional queries will be performed.
+  # This normally requires changes to your LDAP schema.
+  # manager_email: manager_email
   
 
 
