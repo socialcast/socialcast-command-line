@@ -292,10 +292,12 @@ describe Socialcast::CLI do
     before do
       @entry = Net::LDAP::Entry.new("dc=example,dc=com")
       @entry[:mail] = 'ryan@example.com'
-      @entry[:manager] = 'ryan'
-
+      @entry[:manager] = 'cn=bossman,dc=example,dc=com'
+      @manager_email = 'bossman@example.com'
+      
+      @entry.stub(:dereference_mail).with(kind_of(Net::LDAP), "manager", "mail").and_return(@manager_email)
       Net::LDAP.any_instance.stub(:search).and_yield(@entry)
-
+      
       @result = ''
       Zlib::GzipWriter.stub(:open).and_yield(@result)
       Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
@@ -306,8 +308,9 @@ describe Socialcast::CLI do
 
       Socialcast::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml']
     end
-    it 'adds a manager_email entry of ryan@example.com' do
-      @result.should =~ %r{<label>manager_email</label>\s*<value>ryan@example.com</value>}
+    it 'adds a manager_email entry of bossman@example.com' do
+      @result.should =~ /<email>ryan@example.com<\/email>/
+      @result.should =~ /<label>manager_email<\/label>\s*<value>bossman@example.com<\/value>/
     end
   end
 end
