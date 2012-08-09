@@ -144,6 +144,35 @@ describe Socialcast::CLI do
         @result.should_not =~ %r{roles}
       end
     end
+    context "with a user marked for termination that shouldn't be and sanity_check option passed" do
+      before do
+        @entry = Net::LDAP::Entry.new("cn=Ryan,dc=example,dc=com")
+        @entry[:mail] = 'ryan@example.com'
+        @valid_entry = Net::LDAP::Entry.new("cn=Sean,dc=example,dc=com")
+        @valid_entry[:mail] = 'sean@example.com'
+        ldap_search_block = double("ldapsearchblock")
+        ldap_search_block.should_receive(:search).and_yield(@entry)
+        ldap_return = double("ldapreturn")
+        ldap_return.should_receive(:search).with(:return_result=>true, :base=>"dc=example,dc=com", :filter=>"(mail=sean@example.com)", :attributes=>["givenName", "sn", "mail", "isMemberOf"]).and_return(@valid_entry)
+
+        Socialcast::CLI.any_instance.should_receive(:create_ldap_instance).and_return(ldap_search_block, ldap_return)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast::CLI.any_instance.should_receive(:load_configuration).with(/ldap.yml/).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+
+        RestClient::Resource.any_instance.should_receive(:get).and_return({"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json, 
+          {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json,
+          {"users" => []}.to_json)
+        RestClient::Resource.any_instance.should_not_receive(:post)
+
+      end
+      it 'does not post to Socialcast and throws Kernel.abort' do
+        lambda { Socialcast::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml', '--sanity_check', true] }.should raise_error SystemExit
+      end
+    end
     context 'with external group member' do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")

@@ -11,6 +11,7 @@ require File.join(File.dirname(__FILE__), 'net_ldap_ext')
 require 'zlib'
 require 'logger'
 require 'builder'
+require 'set'
 require 'net/ldap'
 
 # uncomment to debug HTTP traffic
@@ -97,6 +98,7 @@ module Socialcast
     method_option :test, :type => :boolean
     method_option :skip_emails, :type => :boolean
     method_option :force, :type => :boolean, :aliases => '-f', :default => false
+    method_option :sanity_check, :type => :boolean, :default => false
     def provision
       config_file = File.expand_path options[:config]
 
@@ -106,11 +108,12 @@ module Socialcast
         end
         return
       end
-      
+
       fail "Unable to load configuration file: #{config_file}" unless File.exists?(config_file)
       say "Using configuration file: #{config_file}"
-      
+
       config = load_configuration config_file
+      http_config = config.fetch('http', {})
 
       required_mappings = %w{email first_name last_name}
       mappings = config.fetch 'mappings', {}
@@ -125,6 +128,8 @@ module Socialcast
       attributes = mappings.values
       attributes << membership_attribute
 
+      user_whitelist = Set.new
+      current_socialcast_list = Set.new
 			count = 0
       output_file = File.join Dir.pwd, options[:output]
       Zlib::GzipWriter.open(output_file) do |gz|
@@ -132,20 +137,14 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            config["connections"].each_pair do |key, connection|
-              say "Connecting to #{key} at #{[connection["host"], connection["port"]].join(':')}"
-
-              ldap = Net::LDAP.new :host => connection["host"], :port => connection["port"], :base => connection["basedn"]
-              ldap.encryption connection['encryption'].to_sym if connection['encryption']
-              ldap.auth connection["username"], connection["password"]
-              say "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
-
+            ldap_connections(config) do |key, connection, ldap|
               ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
                 next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
 
                 users.user do |user|
                   entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
                 end
+                user_whitelist << [entry.grab(mappings["email"]), entry.grab(mappings["unique_identifier"]), entry.grab(mappings["employee_number"])]
                 count += 1
                 say "Scanned #{count} users" if ((count % 100) == 0)
               end # search
@@ -155,11 +154,42 @@ module Socialcast
       end # gzip
       say "Finished scanning #{count} users"
 
+      if options[:sanity_check]
+        say "Sanity checking users currently marked as needing to be terminated"
+        request_params = {:per_page => 500, :format => 'json'}
+        request_params[:page] = 1
+        resource = Socialcast.resource_for_path '/api/users.json', http_config
+        while true
+          response = resource.get(request_params) 
+          result = JSON.parse(response)
+          users = result["users"]
+          break if users.blank?
+          request_params[:page] += 1
+          users.each do |user|
+            current_socialcast_list << [user['contact_info']['email'], user['company_login'], user['employee_number']]
+          end
+        end
+        ldap_connections(config) do |key, connection, ldap|
+          (current_socialcast_list - user_whitelist).each do |user_identifiers|
+            email_filter = (mappings["email"].blank? || user_identifiers[0].nil?) ? nil : Net::LDAP::Filter.eq(mappings["email"], user_identifiers[0])
+            unique_identifier_filter = (mappings["unique_identifier"].blank? || user_identifiers[1].nil?) ? nil : Net::LDAP::Filter.eq(mappings["unique_identifier"], user_identifiers[1])
+            employee_number_filter = (mappings["employee_number"].blank? || user_identifiers[2].nil?) ? nil : Net::LDAP::Filter.eq(mappings["employee_number"], user_identifiers[2])
+            combined_filters = [email_filter, unique_identifier_filter, employee_number_filter].compact
+            filter = ""
+            filter << "(|" if combined_filters.size > 1
+            filter << combined_filters.join("")
+            filter << ")" if combined_filters.size > 1
+            filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
+            ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => attributes)
+            Kernel.abort("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
+          end
+        end
+      end
+
       if count == 0 && !options[:force]
         Kernel.abort("Skipping upload to Socialcast since no users were found")
       else
         say "Uploading dataset to Socialcast..."
-        http_config = config.fetch('http', {})
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
         File.open(output_file, 'r') do |file|
           request_params = {:file => file}
@@ -175,6 +205,20 @@ module Socialcast
     no_tasks do
       def load_configuration(path)
         YAML.load_file path
+      end
+      def ldap_connections(config)
+        config["connections"].each_pair do |key, connection|
+          say "Connecting to #{key} at #{[connection["host"], connection["port"]].join(':')}"
+          ldap = create_ldap_instance(connection)
+          say "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
+          yield key, connection, ldap
+        end
+      end
+      def create_ldap_instance(connection)
+        ldap = Net::LDAP.new :host => connection["host"], :port => connection["port"], :base => connection["basedn"]
+        ldap.encryption connection['encryption'].to_sym if connection['encryption']
+        ldap.auth connection["username"], connection["password"]
+        ldap
       end
     end
     
