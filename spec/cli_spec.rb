@@ -166,8 +166,7 @@ describe Socialcast::CLI do
         RestClient::Resource.any_instance.should_receive(:get).and_return({"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json, 
           {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json,
           {"users" => []}.to_json)
-        RestClient::Resource.any_instance.should_not_receive(:post)
-
+        RestClient::Resource.any_instance.should_receive(:post).never
       end
       it 'does not post to Socialcast and throws Kernel.abort' do
         lambda { Socialcast::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml', '--sanity_check', true] }.should raise_error SystemExit
