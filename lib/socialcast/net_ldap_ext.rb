@@ -9,6 +9,8 @@ class Net::LDAP::Entry
     when Hash
       value = attribute.delete("value")
       value % Hash[attribute.map {|k,v| [k, grab(v)]}].symbolize_keys
+    when nil
+      nil
     else
       Array.wrap(self[attribute]).compact.first
     end

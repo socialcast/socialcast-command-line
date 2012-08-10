@@ -153,7 +153,7 @@ describe Socialcast::CLI do
         ldap_search_block = double("ldapsearchblock")
         ldap_search_block.should_receive(:search).and_yield(@entry)
         ldap_return = double("ldapreturn")
-        ldap_return.should_receive(:search).with(:return_result=>true, :base=>"dc=example,dc=com", :filter=>Net::LDAP::Filter.construct("(&(mail=sean@example.com)(mail=*))"), :attributes=>["givenName", "sn", "mail", "isMemberOf"]).and_return(@valid_entry)
+        ldap_return.should_receive(:search).with(include(:filter=>Net::LDAP::Filter.construct("(&(mail=sean@example.com)(mail=*))"))).and_return(@valid_entry)
 
         Socialcast::CLI.any_instance.should_receive(:create_ldap_instance).and_return(ldap_search_block, ldap_return)
 
