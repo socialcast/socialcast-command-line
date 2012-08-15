@@ -209,13 +209,15 @@ module Socialcast
         current_socialcast_list = Set.new
         request_params = {:per_page => 500, :format => 'json'}
         request_params[:page] = 1
-        resource = Socialcast.resource_for_path '/api/users.json', http_config
+        path_template = "/api/users.json?format=%{format}&per_page=%{per_page}&page=%{page}"
+        resource = Socialcast.resource_for_path((path_template % request_params), http_config)
         while true
           response = resource.get(request_params)
           result = JSON.parse(response)
           users = result["users"]
           break if users.blank?
           request_params[:page] += 1
+          resource = Socialcast.resource_for_path((path_template % request_params), http_config)
           users.each do |user|
             current_socialcast_list << [user['contact_info']['email'], user['company_login'], user['employee_number']]
           end
