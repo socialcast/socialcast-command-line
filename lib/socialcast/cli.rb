@@ -129,7 +129,6 @@ module Socialcast
       attributes << membership_attribute
 
       user_whitelist = Set.new
-      current_socialcast_list = Set.new
 			count = 0
       output_file = File.join Dir.pwd, options[:output]
       Zlib::GzipWriter.open(output_file) do |gz|
@@ -156,32 +155,16 @@ module Socialcast
 
       if options[:sanity_check]
         say "Sanity checking users currently marked as needing to be terminated"
-        request_params = {:per_page => 500, :format => 'json'}
-        request_params[:page] = 1
-        resource = Socialcast.resource_for_path '/api/users.json', http_config
-        while true
-          response = resource.get(request_params) 
-          result = JSON.parse(response)
-          users = result["users"]
-          break if users.blank?
-          request_params[:page] += 1
-          users.each do |user|
-            current_socialcast_list << [user['contact_info']['email'], user['company_login'], user['employee_number']]
-          end
-        end
         ldap_connections(config) do |key, connection, ldap|
-          (current_socialcast_list - user_whitelist).each do |user_identifiers|
+          (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
             email_filter = (mappings["email"].blank? || user_identifiers[0].nil?) ? nil : Net::LDAP::Filter.eq(mappings["email"], user_identifiers[0])
             unique_identifier_filter = (mappings["unique_identifier"].blank? || user_identifiers[1].nil?) ? nil : Net::LDAP::Filter.eq(mappings["unique_identifier"], user_identifiers[1])
             employee_number_filter = (mappings["employee_number"].blank? || user_identifiers[2].nil?) ? nil : Net::LDAP::Filter.eq(mappings["employee_number"], user_identifiers[2])
             combined_filters = [email_filter, unique_identifier_filter, employee_number_filter].compact
-            filter = ""
-            filter << "(|" if combined_filters.size > 1
-            filter << combined_filters.join("")
-            filter << ")" if combined_filters.size > 1
+            filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
             filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
             ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => attributes)
-            Kernel.abort("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
+            abort("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
           end
         end
       end
@@ -201,7 +184,7 @@ module Socialcast
       end
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
     end
-  
+
     no_tasks do
       def load_configuration(path)
         YAML.load_file path
@@ -220,7 +203,23 @@ module Socialcast
         ldap.auth connection["username"], connection["password"]
         ldap
       end
+      def current_socialcast_users(http_config)
+        current_socialcast_list = Set.new
+        request_params = {:per_page => 500, :format => 'json'}
+        request_params[:page] = 1
+        resource = Socialcast.resource_for_path '/api/users.json', http_config
+        while true
+          response = resource.get(request_params)
+          result = JSON.parse(response)
+          users = result["users"]
+          break if users.blank?
+          request_params[:page] += 1
+          users.each do |user|
+            current_socialcast_list << [user['contact_info']['email'], user['company_login'], user['employee_number']]
+          end
+        end
+        current_socialcast_list
+      end
     end
-    
   end
 end
