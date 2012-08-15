@@ -10,14 +10,14 @@ describe Socialcast::CLI do
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
                  to_return(:status => 200, :body => "", :headers => {})
-        
+
         Socialcast::CLI.start ['share', 'testing']
       end
       it 'should send a POST with a message body of "testing" and nil message-type' do
         # See expectations
       end
     end
-    
+
     context 'with a message_type message' do
       before do
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
@@ -25,7 +25,7 @@ describe Socialcast::CLI do
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
                  to_return(:status => 200, :body => "", :headers => {})
-        
+
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
       end
       it 'should send a POST with a message body of "please review" and message_type of "review_request"' do
@@ -38,7 +38,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /group\_id\"\:123/).
                  to_return(:status => 200, :body => "", :headers => {})
-        
+
         Socialcast::CLI.start ['share', 'hi', '--group_id=123']
       end
       it 'should send a POST with group_id param == 123' do
@@ -52,16 +52,16 @@ describe Socialcast::CLI do
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
                  to_return(:status => 200, :body => "", :headers => {})
-        
+
         Socialcast::CLI.start ['share', 'testing']
       end
       it 'should send a POST with a message body of "testing" and nil message-type' do
         # See expectations
       end
     end
-    
+
   end
-  
+
   describe '#provision' do
     before do
       Socialcast::CLI.instance_eval do # to supress warning from stubbing load_configuration
@@ -163,9 +163,12 @@ describe Socialcast::CLI do
         Socialcast::CLI.any_instance.should_receive(:load_configuration).with(/ldap.yml/).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.should_receive(:get).and_return({"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json, 
-          {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json,
-          {"users" => []}.to_json)
+        Socialcast::CLI.any_instance.should_receive(:create_socialcast_user_index_request).and_return(
+          double("request1", :get => {"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json),
+          double("request2", :get => {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json),
+          double("empty_request", :get => {"users" => []}.to_json)
+        )
+
         RestClient::Resource.any_instance.should_receive(:post).never
       end
       it 'does not post to Socialcast and throws Kernel.abort' do
@@ -322,10 +325,10 @@ describe Socialcast::CLI do
       @entry[:mail] = 'ryan@example.com'
       @entry[:manager] = 'cn=bossman,dc=example,dc=com'
       @manager_email = 'bossman@example.com'
-      
+
       @entry.stub(:dereference_mail).with(kind_of(Net::LDAP), "manager", "mail").and_return(@manager_email)
       Net::LDAP.any_instance.stub(:search).and_yield(@entry)
-      
+
       @result = ''
       Zlib::GzipWriter.stub(:open).and_yield(@result)
       Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
