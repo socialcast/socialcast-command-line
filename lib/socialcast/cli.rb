@@ -128,6 +128,7 @@ module Socialcast
       attributes = mappings.values
       attributes << membership_attribute
 
+      user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
 			count = 0
       output_file = File.join Dir.pwd, options[:output]
@@ -143,7 +144,7 @@ module Socialcast
                 users.user do |user|
                   entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
                 end
-                user_whitelist << [entry.grab(mappings["email"]), entry.grab(mappings["unique_identifier"]), entry.grab(mappings["employee_number"])]
+                user_whitelist << user_identifier_list.map { |identifier| entry.grab(mappings[identifier]) }
                 count += 1
                 say "Scanned #{count} users" if ((count % 100) == 0)
               end # search
@@ -157,10 +158,11 @@ module Socialcast
         say "Sanity checking users currently marked as needing to be terminated"
         ldap_connections(config) do |key, connection, ldap|
           (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
-            email_filter = (mappings["email"].blank? || user_identifiers[0].nil?) ? nil : Net::LDAP::Filter.eq(mappings["email"], user_identifiers[0])
-            unique_identifier_filter = (mappings["unique_identifier"].blank? || user_identifiers[1].nil?) ? nil : Net::LDAP::Filter.eq(mappings["unique_identifier"], user_identifiers[1])
-            employee_number_filter = (mappings["employee_number"].blank? || user_identifiers[2].nil?) ? nil : Net::LDAP::Filter.eq(mappings["employee_number"], user_identifiers[2])
-            combined_filters = [email_filter, unique_identifier_filter, employee_number_filter].compact
+            combined_filters = []
+            user_identifier_list.each_with_index do |identifier, index|
+              combined_filters << ((mappings[identifier].blank? || user_identifiers[index].nil?) ? nil : Net::LDAP::Filter.eq(mappings[identifier], user_identifiers[index]))
+            end
+            combined_filters.compact!
             filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
             filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
             ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => attributes)
