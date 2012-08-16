@@ -4,6 +4,7 @@ require "thor"
 require 'json'
 require 'rest_client'
 require 'highline'
+require 'net/ldap'
 require 'socialcast'
 require 'socialcast/message'
 require File.join(File.dirname(__FILE__), 'net_ldap_ext')
@@ -12,7 +13,7 @@ require 'zlib'
 require 'logger'
 require 'builder'
 require 'set'
-require 'net/ldap'
+require 'fileutils'
 
 # uncomment to debug HTTP traffic
 # class ActiveResource::Connection
@@ -99,6 +100,7 @@ module Socialcast
     method_option :skip_emails, :type => :boolean
     method_option :force, :type => :boolean, :aliases => '-f', :default => false
     method_option :sanity_check, :type => :boolean, :default => false
+    method_option :plugin_dir, :type => :string, :default => File.join(ENV['HOME'], 'socialcastplugins')
     def provision
       config_file = File.expand_path options[:config]
 
@@ -114,6 +116,10 @@ module Socialcast
 
       config = load_configuration config_file
       http_config = config.fetch('http', {})
+
+      plugin_dir = File.expand_path(options[:plugin_dir])
+      FileUtils.mkdir_p(plugin_dir)
+      require File.join(plugin_dir, "*.rb") unless Dir.glob(File.join(plugin_dir, "*.rb")).empty?
 
       required_mappings = %w{email first_name last_name}
       mappings = config.fetch 'mappings', {}

@@ -18,4 +18,43 @@ describe Net::LDAP::Entry do
       end
     end
   end
+  describe "#grab" do
+    context "passed hash for attribute" do
+      subject {
+        entry = Net::LDAP::Entry.new("cn=sean,dc=example,dc=com")
+        entry[:mail] = 'sean@example.com'
+        entry
+      }
+      it "returns a string that used defined string template" do
+        subject.grab({"value" => "123%{mail}", "mail" => "mail"}).should == "123sean@example.com"
+      end
+    end
+    context "passed string for attribute" do
+      subject {
+        entry = Net::LDAP::Entry.new("cn=sean,dc=example,dc=com")
+        entry[:mail] = 'sean@example.com'
+        entry
+      }
+      it "returns exact string stored in entry" do
+        subject.grab("mail").should == "sean@example.com"
+      end
+    end
+    context "passed string that can be constantized and the resulting Class responds to run" do
+      subject {
+        entry = Net::LDAP::Entry.new("cn=sean,dc=example,dc=com")
+        entry[:mail] = 'sean@example.com'
+        entry
+      }
+      it "returns result of run method" do
+        module Socialcast
+          class FakeAttributeMap
+            def self.run(entry)
+              return "#{entry[:mail].first.gsub(/a/,'b')}"
+            end
+          end
+        end
+        subject.grab("Socialcast::FakeAttributeMap").should == "sebn@exbmple.com"
+      end
+    end
+  end
 end

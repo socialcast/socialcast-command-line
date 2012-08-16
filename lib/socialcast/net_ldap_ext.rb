@@ -5,15 +5,24 @@ class Net::LDAP::Entry
   # grab a *single* value of an attribute
   # abstracts away ldap multivalue attributes
   def grab(attribute)
+    attribute = begin
+      attribute.constantize
+    rescue NameError
+      attribute
+    end
+
     case attribute
     when Hash
       value = attribute.delete("value")
       value % Hash[attribute.map {|k,v| [k, grab(v)]}].symbolize_keys
     when String
       Array.wrap(self[attribute]).compact.first
+    when Class
+      return nil unless attribute.respond_to?(:run)
+      attribute.run(self)
     end
   end
-  
+
   def dereference_mail(ldap_connection, dn_field, mail_attribute)
     dn = grab(dn_field)
     ldap_connection.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |entry|
