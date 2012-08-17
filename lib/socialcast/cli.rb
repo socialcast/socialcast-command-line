@@ -100,7 +100,7 @@ module Socialcast
     method_option :skip_emails, :type => :boolean
     method_option :force, :type => :boolean, :aliases => '-f', :default => false
     method_option :sanity_check, :type => :boolean, :default => false
-    method_option :plugin_dir, :type => :string, :default => File.join(ENV['HOME'], 'socialcastplugins')
+    method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file."
     def provision
       config_file = File.expand_path options[:config]
 
@@ -117,9 +117,15 @@ module Socialcast
       config = load_configuration config_file
       http_config = config.fetch('http', {})
 
-      plugin_dir = File.expand_path(options[:plugin_dir])
-      FileUtils.mkdir_p(plugin_dir)
-      require File.join(plugin_dir, "*.rb") unless Dir.glob(File.join(plugin_dir, "*.rb")).empty?
+      if options[:plugins]
+        options[:plugins].each do |plugin|
+          begin
+            require plugin
+          rescue LoadError
+            say "Unable to load #{plugin}"
+          end
+        end
+      end
 
       required_mappings = %w{email first_name last_name}
       mappings = config.fetch 'mappings', {}
