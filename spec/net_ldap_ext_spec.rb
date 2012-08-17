@@ -73,6 +73,35 @@ describe Net::LDAP::Entry do
         subject.grab("socialcast/fake_attribute_map").should == "sebn@exbmple.com"
       end
     end
-
+    context "attribute passed has a collision between string and Class" do
+      subject {
+        entry = Net::LDAP::Entry.new("cn=sean,dc=example,dc=com")
+        entry[:mail] = 'sean@example.com'
+        entry
+      }
+      it "returns the result of the Class run method" do
+        class Mail
+          def self.run(entry)
+            return "#{entry[:mail].first.gsub(/a/,'b')}"
+          end
+        end
+        subject.grab("mail").should == "sebn@exbmple.com"
+      end
+    end
+    context "attribute passed constantizes to a module instead of a class" do
+      subject {
+        entry = Net::LDAP::Entry.new("cn=sean,dc=example,dc=com")
+        entry[:mail] = 'sean@example.com'
+        entry
+      }
+      it "returns the result of the Module run method" do
+        module FakeAttributeMap
+          def self.run(entry)
+            return "#{entry[:mail].first.gsub(/a/,'b')}"
+          end
+        end
+        subject.grab("FakeAttributeMap").should == "sebn@exbmple.com"
+      end
+    end
   end
 end
