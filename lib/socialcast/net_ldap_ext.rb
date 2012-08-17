@@ -6,7 +6,7 @@ class Net::LDAP::Entry
   # abstracts away ldap multivalue attributes
   def grab(attribute)
     attribute = begin
-      attribute.constantize
+      classified_attribute.classify.constantize
     rescue NameError
       attribute
     end

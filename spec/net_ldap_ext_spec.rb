@@ -56,5 +56,23 @@ describe Net::LDAP::Entry do
         subject.grab("Socialcast::FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
+    context "passed string that must be classified and the resulting Class responds to run" do
+      subject {
+        entry = Net::LDAP::Entry.new("cn=sean,dc=example,dc=com")
+        entry[:mail] = 'sean@example.com'
+        entry
+      }
+      it "returns result of run method" do
+        module Socialcast
+          class FakeAttributeMap
+            def self.run(entry)
+              return "#{entry[:mail].first.gsub(/a/,'b')}"
+            end
+          end
+        end
+        subject.grab("socialcast/fake_attribute_map").should == "sebn@exbmple.com"
+      end
+    end
+
   end
 end
