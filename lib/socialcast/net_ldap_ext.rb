@@ -17,7 +17,7 @@ class Net::LDAP::Entry
       value % Hash[attribute.map {|k,v| [k, grab(v)]}].symbolize_keys
     when String
       Array.wrap(self[attribute]).compact.first
-    when Class
+    when Class, Module
       return nil unless attribute.respond_to?(:run)
       attribute.run(self)
     end
