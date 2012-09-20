@@ -117,13 +117,11 @@ module Socialcast
       config = load_configuration config_file
       http_config = config.fetch('http', {})
 
-      if options[:plugins]
-        options[:plugins].each do |plugin|
-          begin
-            require plugin
-          rescue LoadError => e
-            fail "Unable to load #{plugin}: #{e}"
-          end
+      Array.wrap(options[:plugins]).each do |plugin|
+        begin
+          require plugin
+        rescue LoadError => e
+          fail "Unable to load #{plugin}: #{e}"
         end
       end
 
