@@ -123,6 +123,43 @@ describe Socialcast::CLI do
       end
       it 'resolves absolute path without using current process directory' do end # see expectations
     end
+    context 'with plugins option used with non-existent ruby files' do
+      before do
+        @entry = Net::LDAP::Entry.new("dc=example,dc=com")
+        @entry[:mail] = 'ryan@example.com'
+        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        RestClient::Resource.any_instance.stub(:post)
+
+      end
+      it 'does not post to Socialcast and throws Kernel.abort' do
+        lambda { Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', ['does_not_exist.rb', 'also_does_not_exist.rb']] }.should raise_error SystemExit
+      end
+    end
+    context 'with plugins option used with existent ruby file' do
+      before do
+        @entry = Net::LDAP::Entry.new("dc=example,dc=com")
+        @entry[:mail] = 'ryan@example.com'
+        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        RestClient::Resource.any_instance.stub(:post)
+
+        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', [File.join(File.dirname(__FILE__), 'fixtures', 'fake_attribute_map')]]
+      end
+      it 'successfully processes' do end # see expectations
+    end
     context 'with ldap.yml configuration excluding permission_mappings' do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")

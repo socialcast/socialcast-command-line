@@ -121,7 +121,7 @@ module Socialcast
         begin
           require plugin
         rescue LoadError => e
-          fail "Unable to load #{plugin}: #{e}"
+          abort "Unable to load #{plugin}: #{e}"
         end
       end
 
