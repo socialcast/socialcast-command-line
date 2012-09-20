@@ -121,8 +121,8 @@ module Socialcast
         options[:plugins].each do |plugin|
           begin
             require plugin
-          rescue LoadError
-            say "Unable to load #{plugin}"
+          rescue LoadError => e
+            fail "Unable to load #{plugin}: #{e}"
           end
         end
       end
