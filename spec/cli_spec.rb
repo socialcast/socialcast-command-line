@@ -139,7 +139,7 @@ describe Socialcast::CLI do
 
       end
       it 'does not post to Socialcast and throws Kernel.abort' do
-        lambda { Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', ['does_not_exist.rb', 'also_does_not_exist.rb']] }.should raise_error SystemExit
+        lambda { Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', ['does_not_exist.rb', 'also_does_not_exist.rb']] }.should raise_error
       end
     end
     context 'with plugins option used with existent ruby file' do
