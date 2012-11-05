@@ -2,21 +2,21 @@
 # LDAP connections
 connections:
   example_connection_1:
-    username: "cn=Directory Manager"
+    username: "Directory Manager"
     password: "password"
     host: ldap.yourdomain.com
     port: 389
     basedn: "ou=smallpeople,ou=qa,dc=socialcast,dc=com"
     filter: "(mail=*)"
   example_connection_2:
-    username: "cn=Directory Manager"
+    username: "Directory Manager"
     password: "password"
     host: ldap.yourdomain.com
     port: 389
     basedn: "ou=tinypeople,ou=qa,dc=yourdomain,dc=com"
     filter: "(mail=*)"
   example_encrypted_connection:
-    username: "cn=Directory Manager"
+    username: "Directory Manager"
     password: "password"
     host: ldap.yourdomain.com
     port: 389
