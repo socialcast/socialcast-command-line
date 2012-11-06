@@ -59,13 +59,14 @@ permission_mappings:
   # configure LDAP field for group memberships (ex: memberof, isMemberOf, etc)
   attribute_name: memberof
   account_types:
-    external: "cn=External,dc=example,dc=com"
+    external: "CN=External,OU=Groups,DC=example,DC=com"
   roles:
-    tenant_admin: "cn=Admins,dc=example,dc=com"
-    sbi_admin: "cn=Admins,dc=example,dc=com"
-    reach_admin: "cn=Admins,dc=example,dc=com"
-    town_hall_admin: "cn=Admins,dc=example,dc=com"
+    tenant_admin: "CN=Admins,OU=Groups,DC=example,DC=com"
+    sbi_admin: "CN=Admins,OU=Groups,DC=example,DC=com"
+    reach_admin: "CN=Admins,OU=Groups,DC=example,DC=com"
+    town_hall_admin: "CN=Admins,OU=Groups,DC=example,DC=com"
 
+  # Role search definitions need to be EXACT matches to the output from your LDAP server.
 
 # general script options
 options:
