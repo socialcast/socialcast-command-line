@@ -185,12 +185,16 @@ module Socialcast
         Kernel.abort("Skipping upload to Socialcast since no users were found")
       else
         say "Uploading dataset to Socialcast..."
-        resource = Socialcast.resource_for_path '/api/users/provision', http_config
-        File.open(output_file, 'r') do |file|
-          request_params = {:file => file}
-          request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
-          request_params[:test] = 'true' if (config['options']["test"] || options[:test])
-          resource.post request_params
+        resource = Socialcast.resource_for_path '/api/users/provision.json', http_config
+        begin
+          File.open(output_file, 'r') do |file|
+            request_params = {:file => file}
+            request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
+            request_params[:test] = 'true' if (config['options']["test"] || options[:test])
+            resource.post request_params
+          end
+        rescue RestClient::Unauthorized => e
+          fail "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
         end
         say "Finished"
       end
