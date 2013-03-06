@@ -194,7 +194,7 @@ module Socialcast
             resource.post request_params
           end
         rescue RestClient::Unauthorized => e
-          fail "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
+          Kernel.abort "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
         end
         say "Finished"
       end

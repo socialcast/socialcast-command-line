@@ -105,6 +105,26 @@ describe Socialcast::CLI do
       end
       it 'does post to Socialcast and does not call Kernel.abort' do end # see expectations
     end
+    context 'with socialcast returning 401' do
+      before do
+        Net::LDAP.any_instance.stub(:search).and_return(nil)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        rest_client_resource = double(:rest_client_resource)
+        rest_client_resource.stub(:post).and_raise(RestClient::Unauthorized.new(mock('Unauthorized HTTP Response', :code => '401')))
+        Socialcast.stub(:resource_for_path).and_return(rest_client_resource)
+        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.").once
+
+        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml']
+      end
+      it "raises Kernel abort" do end # see expectations
+    end
     context 'with absolute path to ldap.yml file' do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
