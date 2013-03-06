@@ -121,7 +121,7 @@ describe Socialcast::CLI do
         Socialcast.stub(:resource_for_path).and_return(rest_client_resource)
         Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.").once
 
-        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml']
+        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '-f']
       end
       it "raises Kernel abort" do end # see expectations
     end
