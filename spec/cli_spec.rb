@@ -9,6 +9,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'testing']
@@ -24,6 +25,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
@@ -37,6 +39,7 @@ describe Socialcast::CLI do
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /group\_id\"\:123/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'hi', '--group_id=123']
@@ -51,6 +54,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'testing']

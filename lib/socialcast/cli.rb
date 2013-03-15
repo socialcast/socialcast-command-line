@@ -43,15 +43,15 @@ module Socialcast
     method_option :proxy, :type => :string, :desc => 'HTTP proxy options for connecting to Socialcast server'
     def authenticate
       user = options[:user] || ask('Socialcast username: ')
-      password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
+      password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }.to_s
       domain = options[:domain]
 
-      url = ['https://', domain, '/api/authentication.json'].join
+      url = ['https://', domain, '/api/authentication'].join
       say "Authenticating #{user} to #{url}"
       params = {:email => user, :password => password }
       RestClient.log = Logger.new(STDOUT) if options[:trace]
       RestClient.proxy = options[:proxy] if options[:proxy]
-      resource = RestClient::Resource.new url
+      resource = RestClient::Resource.new url, :accept => 'json'
       response = resource.post params
       say "API response: #{response.body.to_s}" if options[:trace]
       communities = JSON.parse(response.body.to_s)['communities']
@@ -73,7 +73,7 @@ module Socialcast
       options[:attachments].each do |path|
         Dir[File.expand_path(path)].each do |attachment|
           say "Uploading attachment #{attachment}..."
-          uploader = Socialcast.resource_for_path '/api/attachments.json', {}, options[:trace]
+          uploader = Socialcast.resource_for_path '/api/attachments', {}, options[:trace]
           uploader.post :attachment => File.new(attachment) do |response, request, result|
             if response.code == 201
               attachment_ids << JSON.parse(response.body)['attachment']['id']
@@ -185,7 +185,7 @@ module Socialcast
         Kernel.abort("Skipping upload to Socialcast since no users were found")
       else
         say "Uploading dataset to Socialcast..."
-        resource = Socialcast.resource_for_path '/api/users/provision.json', http_config
+        resource = Socialcast.resource_for_path '/api/users/provision', http_config
         begin
           File.open(output_file, 'r') do |file|
             request_params = {:file => file}
@@ -238,7 +238,7 @@ module Socialcast
         current_socialcast_list
       end
       def create_socialcast_user_index_request(http_config, request_params)
-        path_template = "/api/users.json?format=%{format}&per_page=%{per_page}&page=%{page}"
+        path_template = "/api/users?format=%{format}&per_page=%{per_page}&page=%{page}"
         Socialcast.resource_for_path((path_template % request_params), http_config)
       end
     end
