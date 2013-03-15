@@ -221,7 +221,7 @@ module Socialcast
       end
       def current_socialcast_users(http_config)
         current_socialcast_list = Set.new
-        request_params = {:per_page => 500, :format => 'json'}
+        request_params = {:per_page => 500}
         request_params[:page] = 1
         resource = create_socialcast_user_index_request(http_config, request_params)
         while true
@@ -238,7 +238,7 @@ module Socialcast
         current_socialcast_list
       end
       def create_socialcast_user_index_request(http_config, request_params)
-        path_template = "/api/users?format=%{format}&per_page=%{per_page}&page=%{page}"
+        path_template = "/api/users?per_page=%{per_page}&page=%{page}"
         Socialcast.resource_for_path((path_template % request_params), http_config)
       end
     end
