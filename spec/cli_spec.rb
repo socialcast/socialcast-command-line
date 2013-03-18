@@ -9,6 +9,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'testing']
@@ -24,6 +25,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'please review', '--message_type=review_request']
@@ -37,6 +39,7 @@ describe Socialcast::CLI do
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /group\_id\"\:123/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'hi', '--group_id=123']
@@ -51,6 +54,7 @@ describe Socialcast::CLI do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
+                 with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CLI.start ['share', 'testing']
@@ -104,6 +108,26 @@ describe Socialcast::CLI do
         Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '-f']
       end
       it 'does post to Socialcast and does not call Kernel.abort' do end # see expectations
+    end
+    context 'with socialcast returning 401' do
+      before do
+        Net::LDAP.any_instance.stub(:search).and_return(nil)
+
+        @result = ''
+        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+
+        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        rest_client_resource = double(:rest_client_resource)
+        rest_client_resource.stub(:post).and_raise(RestClient::Unauthorized.new(mock('Unauthorized HTTP Response', :code => '401')))
+        Socialcast.stub(:resource_for_path).and_return(rest_client_resource)
+        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.").once
+
+        Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '-f']
+      end
+      it "raises Kernel abort" do end # see expectations
     end
     context 'with absolute path to ldap.yml file' do
       before do

@@ -43,16 +43,16 @@ module Socialcast
     method_option :proxy, :type => :string, :desc => 'HTTP proxy options for connecting to Socialcast server'
     def authenticate
       user = options[:user] || ask('Socialcast username: ')
-      password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }
+      password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }.to_s
       domain = options[:domain]
 
-      url = ['https://', domain, '/api/authentication.json'].join
+      url = ['https://', domain, '/api/authentication'].join
       say "Authenticating #{user} to #{url}"
       params = {:email => user, :password => password }
       RestClient.log = Logger.new(STDOUT) if options[:trace]
       RestClient.proxy = options[:proxy] if options[:proxy]
       resource = RestClient::Resource.new url
-      response = resource.post params
+      response = resource.post params, :accept => :json
       say "API response: #{response.body.to_s}" if options[:trace]
       communities = JSON.parse(response.body.to_s)['communities']
       domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
@@ -73,8 +73,8 @@ module Socialcast
       options[:attachments].each do |path|
         Dir[File.expand_path(path)].each do |attachment|
           say "Uploading attachment #{attachment}..."
-          uploader = Socialcast.resource_for_path '/api/attachments.json', {}, options[:trace]
-          uploader.post :attachment => File.new(attachment) do |response, request, result|
+          uploader = Socialcast.resource_for_path '/api/attachments', {}, options[:trace]
+          uploader.post({:attachment => File.new(attachment)}, {:accept => :json}) do |response, request, result|
             if response.code == 201
               attachment_ids << JSON.parse(response.body)['attachment']['id']
             else
@@ -186,11 +186,15 @@ module Socialcast
       else
         say "Uploading dataset to Socialcast..."
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
-        File.open(output_file, 'r') do |file|
-          request_params = {:file => file}
-          request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
-          request_params[:test] = 'true' if (config['options']["test"] || options[:test])
-          resource.post request_params
+        begin
+          File.open(output_file, 'r') do |file|
+            request_params = {:file => file}
+            request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
+            request_params[:test] = 'true' if (config['options']["test"] || options[:test])
+            resource.post request_params, :accept => :json
+          end
+        rescue RestClient::Unauthorized => e
+          Kernel.abort "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
         end
         say "Finished"
       end
@@ -217,11 +221,11 @@ module Socialcast
       end
       def current_socialcast_users(http_config)
         current_socialcast_list = Set.new
-        request_params = {:per_page => 500, :format => 'json'}
+        request_params = {:per_page => 500}
         request_params[:page] = 1
         resource = create_socialcast_user_index_request(http_config, request_params)
         while true
-          response = resource.get
+          response = resource.get :accept => :json
           result = JSON.parse(response)
           users = result["users"]
           break if users.blank?
@@ -234,7 +238,7 @@ module Socialcast
         current_socialcast_list
       end
       def create_socialcast_user_index_request(http_config, request_params)
-        path_template = "/api/users.json?format=%{format}&per_page=%{per_page}&page=%{page}"
+        path_template = "/api/users?per_page=%{per_page}&page=%{page}"
         Socialcast.resource_for_path((path_template % request_params), http_config)
       end
     end
