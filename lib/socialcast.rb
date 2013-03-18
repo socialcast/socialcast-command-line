@@ -27,15 +27,14 @@ module Socialcast
       {:user => credentials[:user], :password => credentials[:password]}
     end
     def default_options
-      basic_auth_options.merge({:accept => 'json'})
+      basic_auth_options
     end
     # configure restclient for api call
     def resource_for_path(path, options = {}, debug = true)
       RestClient.log = Logger.new(STDOUT) if debug
       RestClient.proxy = credentials[:proxy] if credentials[:proxy]
       url = ['https://', credentials[:domain], path].join
-      options.merge(default_options)
-      RestClient::Resource.new url, options.merge(basic_auth_options)
+      RestClient::Resource.new url, options.merge(default_options)
     end
   end
 end

@@ -51,8 +51,8 @@ module Socialcast
       params = {:email => user, :password => password }
       RestClient.log = Logger.new(STDOUT) if options[:trace]
       RestClient.proxy = options[:proxy] if options[:proxy]
-      resource = RestClient::Resource.new url, :accept => 'json'
-      response = resource.post params
+      resource = RestClient::Resource.new url
+      response = resource.post params, :accept => 'json'
       say "API response: #{response.body.to_s}" if options[:trace]
       communities = JSON.parse(response.body.to_s)['communities']
       domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
@@ -74,7 +74,7 @@ module Socialcast
         Dir[File.expand_path(path)].each do |attachment|
           say "Uploading attachment #{attachment}..."
           uploader = Socialcast.resource_for_path '/api/attachments', {}, options[:trace]
-          uploader.post :attachment => File.new(attachment) do |response, request, result|
+          uploader.post({:attachment => File.new(attachment)}, {:accept => :json}) do |response, request, result|
             if response.code == 201
               attachment_ids << JSON.parse(response.body)['attachment']['id']
             else
@@ -191,7 +191,7 @@ module Socialcast
             request_params = {:file => file}
             request_params[:skip_emails] = 'true' if (config['options']["skip_emails"] || options[:skip_emails])
             request_params[:test] = 'true' if (config['options']["test"] || options[:test])
-            resource.post request_params
+            resource.post request_params, :accept => :json
           end
         rescue RestClient::Unauthorized => e
           Kernel.abort "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
@@ -225,7 +225,7 @@ module Socialcast
         request_params[:page] = 1
         resource = create_socialcast_user_index_request(http_config, request_params)
         while true
-          response = resource.get
+          response = resource.get :accept => :json
           result = JSON.parse(response)
           users = result["users"]
           break if users.blank?
