@@ -52,7 +52,7 @@ module Socialcast
       RestClient.log = Logger.new(STDOUT) if options[:trace]
       RestClient.proxy = options[:proxy] if options[:proxy]
       resource = RestClient::Resource.new url
-      response = resource.post params, :accept => 'json'
+      response = resource.post params, :accept => :json
       say "API response: #{response.body.to_s}" if options[:trace]
       communities = JSON.parse(response.body.to_s)['communities']
       domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
