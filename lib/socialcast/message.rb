@@ -1,5 +1,7 @@
 require 'active_resource'
 
+ActiveResource::Base.include_root_in_json = true
+
 module Socialcast
   class Message < ActiveResource::Base
     headers['Accept'] = 'application/json'

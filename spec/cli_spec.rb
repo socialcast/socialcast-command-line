@@ -7,8 +7,7 @@ describe Socialcast::CLI do
       before do
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
-                 with(:body => /message\_type\"\:null/).
-                 with(:body => /testing/).
+                 with(:body => { "message" => { "body" => "testing", "url" => nil, "message_type" => nil, "attachment_ids" => [], "group_id" => nil }}).
                  with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
