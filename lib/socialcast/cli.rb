@@ -135,12 +135,28 @@ module Socialcast
 
       permission_mappings = config.fetch 'permission_mappings', {}
       membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
-      attributes = mappings.values
+      attributes = mappings.values.map do |mapping_value|
+        mapping_value = begin
+          mapping_value.camelize.constantize
+        rescue NameError
+          mapping_value
+        end
+        case mapping_value
+        when Hash
+          dup_mapping_value = mapping_value.dup
+          dup_mapping_value.delete("value")
+          dup_mapping_value.values
+        when String
+          mapping_value
+        when Class, Module
+          fail "Please add the attributes method to #{mapping_value}" unless mapping_value.respond_to?(:attributes)
+          mapping_value.attributes
+        end
+      end.flatten
       attributes << membership_attribute
-
       user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
-			count = 0
+      count = 0
       output_file = File.join Dir.pwd, options[:output]
       Zlib::GzipWriter.open(output_file) do |gz|
         xml = Builder::XmlMarkup.new(:target => gz, :indent => 1)

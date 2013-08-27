@@ -174,14 +174,16 @@ describe Socialcast::CLI do
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_plugin_mapping.yml')))
         File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
 
         Socialcast::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', [File.join(File.dirname(__FILE__), 'fixtures', 'fake_attribute_map')]]
       end
-      it 'successfully processes' do end # see expectations
+      it 'successfully processes' do
+        @result.should =~ %r{rybn@exbmple.com}
+      end # see expectations
     end
     context 'with ldap.yml configuration excluding permission_mappings' do
       before do

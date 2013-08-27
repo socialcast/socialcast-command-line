@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.description = %q{publish messages to your stream from a command line interface}
 
   s.rubyforge_project = "socialcast"
-  
+
   s.add_runtime_dependency 'rest-client', '>= 1.4.0'
   s.add_runtime_dependency 'json', '>= 1.4.6'
   s.add_runtime_dependency 'thor', '>= 0.14.6'

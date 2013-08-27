@@ -6,15 +6,16 @@ class Net::LDAP::Entry
   # abstracts away ldap multivalue attributes
   def grab(attribute)
     attribute = begin
-      attribute.classify.constantize
+      attribute.camelize.constantize
     rescue NameError
       attribute
     end
 
     case attribute
     when Hash
-      value = attribute.delete("value")
-      value % Hash[attribute.map {|k,v| [k, grab(v)]}].symbolize_keys
+      dup_attribute = attribute.dup
+      value = dup_attribute.delete("value")
+      value % Hash[dup_attribute.map {|k,v| [k, grab(v)]}].symbolize_keys
     when String
       Array.wrap(self[attribute]).compact.first
     when Class, Module

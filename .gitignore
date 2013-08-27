@@ -22,3 +22,4 @@ pkg
 Gemfile.lock
 pkg/*
 
+users.xml.gz
