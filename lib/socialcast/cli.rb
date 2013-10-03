@@ -176,10 +176,11 @@ module Socialcast
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
       each_ldap_entry(config) do |ldap, entry|
+        email = entry.grab(mappings['email'])
         if profile_photo_data = entry.grab(mappings['profile_photo'])
           profile_photo_data = profile_photo_data.force_encoding('binary')
 
-          user_search_response = search_users_resource.get(:params => { :q => entry.grab(mappings['email']), :per_page => 1 }, :accept => :json)
+          user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
           user_info = JSON.parse(user_search_response)['users'].first
           if user_info && user_info['avatars'] && user_info['avatars']['is_system_default']
             user_resource = Socialcast.resource_for_path "/api/users/#{user_info['id']}", http_config
@@ -194,11 +195,13 @@ module Socialcast
               'png'
             when /^#{jpg}/, /^#{jpg2}/
               'jpg'
+            else
+              say "Skipping photo for #{email}: unknown image format (supports .gif, .png, .jpg)"
+              next
             end
 
-            profile_photo_io = StringIO.new(profile_photo_data)
-
             # tell RestClient to upload this as a File
+            profile_photo_io = StringIO.new(profile_photo_data)
             eval "def profile_photo_io.content_type
               'image/#{content_type}'
             end
@@ -206,6 +209,7 @@ module Socialcast
               'image.#{content_type}'
             end"
 
+            say "Uploading photo for #{email}"
             user_resource.put({ :user => { :profile_photo => { :data => profile_photo_io } }, :multipart => true }, :accept => :json)
           end
         end
