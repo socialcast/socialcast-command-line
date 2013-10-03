@@ -118,7 +118,7 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            each_ldap_entry do |ldap, entry|
+            each_ldap_entry(config) do |ldap, entry|
               users.user do |user|
                 entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
               end
@@ -127,7 +127,6 @@ module Socialcast
           end # users
         end # export
       end # gzip
-      say "Finished scanning #{count} users"
 
       if options[:sanity_check]
         say "Sanity checking users currently marked as needing to be terminated"
@@ -146,7 +145,7 @@ module Socialcast
         end
       end
 
-      if count == 0 && !options[:force]
+      if user_whitelist.empty? && !options[:force]
         Kernel.abort("Skipping upload to Socialcast since no users were found")
       else
         say "Uploading dataset to Socialcast..."
@@ -279,14 +278,16 @@ module Socialcast
 
         ldap_connections(config) do |key, connection, ldap|
           ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
-            next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
-
-            yield ldap, entry
+            
+            if entry.grab(mappings["email"]).present? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).present?)
+              yield ldap, entry
+            end
 
             count += 1
             say "Scanned #{count} users" if ((count % 100) == 0)
           end
         end
+        say "Finished scanning #{count} users"
       end
 
       def ldap_connections(config)

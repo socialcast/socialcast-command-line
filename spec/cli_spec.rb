@@ -78,8 +78,7 @@ describe Socialcast::CLI do
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
         Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:load_configuration).with('/my/path/to/ldap.yml').and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
-        File.should_receive(:exists?).with('/my/path/to/ldap.yml').and_return(true)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).with(hash_including('config' => '/my/path/to/ldap.yml')).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.should_not_receive(:post)
