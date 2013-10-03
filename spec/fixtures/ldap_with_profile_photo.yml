@@ -1,0 +1,16 @@
+--- 
+connections:
+  example_connection_1:
+    username: "cn=Directory Manager"
+    password: "test"
+    host: localhost
+    port: 1389
+    basedn: "dc=example,dc=com"
+    filter: "(mail=*)"
+
+# LDAP attribute mappings
+mappings: 
+  first_name: givenName
+  last_name: sn
+  email: mail
+  profile_photo: jpegPhoto

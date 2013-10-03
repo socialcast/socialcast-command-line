@@ -172,7 +172,6 @@ module Socialcast
       http_config = config.fetch 'http', {}
       mappings = config.fetch 'mappings', {}
       profile_photo_field = mappings.fetch('profile_photo')
-      fail "Must specify a 'profile_photo' mapping" unless profile_photo_field
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
@@ -199,6 +198,7 @@ module Socialcast
 
             profile_photo_io = StringIO.new(profile_photo_data)
 
+            # tell RestClient to upload this as a File
             eval "def profile_photo_io.content_type
               'image/#{content_type}'
             end

@@ -62,7 +62,87 @@ describe Socialcast::CLI do
         # See expectations
       end
     end
+  end
 
+  describe '#sync_photos' do
+    context "with no profile_photo mapping" do
+      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml') }
+      it "reports an error" do
+        lambda { Socialcast::CLI.start ['sync_photos', '-c', config_file] }.should raise_error KeyError
+      end
+    end
+
+    context "user does not have a profile photo" do
+      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_profile_photo.yml') }
+      let(:system_default_photo) { true }
+      let(:photo_data) { "\x89PNGabc" }
+      before do
+        @entry = Net::LDAP::Entry.new("dc=example,dc=com")
+        @entry[:mail] = 'ryan@example.com'
+        @entry[:jpegPhoto] = photo_data
+        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        user_search_resource = double(:user_search_resource)
+        search_api_response = {
+          'users' => [
+            {
+              'id' => 7,
+              'avatars' => {
+                'is_system_default' => system_default_photo
+              }
+            }
+          ] 
+        }
+        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
+        Socialcast.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+
+        user_resource = double(:user_resource)
+        user_resource.should_receive(:put) do |data|
+          uploaded_data = data[:user][:profile_photo][:data]
+          uploaded_data.string.should == photo_data
+          uploaded_data.content_type.should == 'image/png'
+        end
+        Socialcast.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+
+        Socialcast::CLI.start ['sync_photos', '-c', config_file]
+      end
+      it "syncs the profile photo" do; end
+    end
+
+    context "user already has a profile photo" do
+      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_profile_photo.yml') }
+      let(:system_default_photo) { false }
+      let(:photo_data) { "\x89PNGabc" }
+      before do
+        @entry = Net::LDAP::Entry.new("dc=example,dc=com")
+        @entry[:mail] = 'ryan@example.com'
+        @entry[:jpegPhoto] = "\x89PNGabc"
+        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+
+        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        user_search_resource = double(:user_search_resource)
+        search_api_response = {
+          'users' => [
+            {
+              'id' => 7,
+              'avatars' => {
+                'is_system_default' => system_default_photo
+              }
+            }
+          ] 
+        }
+        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
+        Socialcast.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+
+        user_resource = double(:user_resource)
+        user_resource.should_not_receive(:put)
+        Socialcast.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+
+        Socialcast::CLI.start ['sync_photos', '-c', config_file]
+      end
+      it "does not sync the profile photo" do; end
+    end
   end
 
   describe '#provision' do
