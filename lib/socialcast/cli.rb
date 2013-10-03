@@ -139,14 +139,14 @@ module Socialcast
             combined_filters.compact!
             filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
             filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
-            ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => attributes)
-            abort("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
+            ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => ldap_search_attributes(config))
+            fail("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
           end
         end
       end
 
       if user_whitelist.empty? && !options[:force]
-        Kernel.abort("Skipping upload to Socialcast since no users were found")
+        fail("Skipping upload to Socialcast since no users were found")
       else
         say "Uploading dataset to Socialcast..."
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
@@ -250,8 +250,7 @@ module Socialcast
         config
       end
 
-      def each_ldap_entry(config, &block)
-        count = 0
+      def ldap_search_attributes(config)
         mappings = config.fetch 'mappings', {}
         permission_mappings = config.fetch 'permission_mappings', {}
 
@@ -275,9 +274,14 @@ module Socialcast
           end
         end.flatten
         attributes << membership_attribute
+      end
+
+      def each_ldap_entry(config, &block)
+        count = 0
+        mappings = config.fetch 'mappings', {}
 
         ldap_connections(config) do |key, connection, ldap|
-          ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
+          ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(config)) do |entry|
             
             if entry.grab(mappings["email"]).present? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).present?)
               yield ldap, entry
