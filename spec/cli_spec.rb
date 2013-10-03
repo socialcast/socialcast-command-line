@@ -84,7 +84,7 @@ describe Socialcast::CLI do
         RestClient::Resource.any_instance.should_not_receive(:post)
       end
       it 'does not post to Socialcast and raises error' do
-        lambda { Socialcast::CLI.start ['provision'] }.should raise_error RuntimeError
+        lambda { Socialcast::CLI.start ['provision'] }.should raise_error SystemExit
       end
     end
     context 'with 0 users found in ldap and force option passed' do
@@ -399,7 +399,7 @@ describe Socialcast::CLI do
         RestClient::Resource.any_instance.should_receive(:post).never
       end
       it 'does not post to Socialcast and throws Kernel.abort' do
-        lambda { Socialcast::CLI.start ['provision', '--sanity_check', true] }.should raise_error RuntimeError
+        lambda { Socialcast::CLI.start ['provision', '--sanity_check', true] }.should raise_error SystemExit
       end
     end
   end

@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
-require File.join(File.dirname(__FILE__), '..', 'lib', 'socialcast', 'cli')
+$:.unshift(File.expand_path('../../lib', __FILE__))
+require 'socialcast/cli'
 
 Socialcast::CLI.start

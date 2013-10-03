@@ -140,13 +140,13 @@ module Socialcast
             filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
             filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
             ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => ldap_search_attributes(config))
-            fail("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
+            Kernel.abort("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
           end
         end
       end
 
       if user_whitelist.empty? && !options[:force]
-        fail("Skipping upload to Socialcast since no users were found")
+        Kernel.abort("Skipping upload to Socialcast since no users were found")
       else
         say "Uploading dataset to Socialcast..."
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
