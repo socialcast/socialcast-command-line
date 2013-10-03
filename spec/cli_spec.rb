@@ -100,8 +100,8 @@ describe Socialcast::CLI do
         user_resource = double(:user_resource)
         user_resource.should_receive(:put) do |data|
           uploaded_data = data[:user][:profile_photo][:data]
-          uploaded_data.string.should == photo_data
-          uploaded_data.content_type.should == 'image/png'
+          uploaded_data.read.force_encoding('binary').should == photo_data
+          uploaded_data.path.should =~ /\.png\Z/
         end
         Socialcast.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
 
