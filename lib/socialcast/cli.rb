@@ -102,38 +102,13 @@ module Socialcast
     method_option :sanity_check, :type => :boolean, :default => false
     method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file."
     def provision
-      config_file = File.expand_path options[:config]
+      load_plugins options
+      config = ldap_config options
 
-      if options[:setup]
-        create_file config_file do
-          File.read File.join(File.dirname(__FILE__), '..', '..', 'config', 'ldap.yml')
-        end
-        return
-      end
-
-      fail "Unable to load configuration file: #{config_file}" unless File.exists?(config_file)
-      say "Using configuration file: #{config_file}"
-
-      config = load_configuration config_file
-      http_config = config.fetch('http', {})
-
-      Array.wrap(options[:plugins]).each do |plugin|
-        begin
-          require plugin
-        rescue LoadError => e
-          fail "Unable to load #{plugin}: #{e}"
-        end
-      end
-
-      required_mappings = %w{email first_name last_name}
+      http_config = config.fetch 'http', {}
       mappings = config.fetch 'mappings', {}
-      required_mappings.each do |field|
-        unless mappings.has_key? field
-          fail "Missing required mapping: #{field}"
-        end
-      end
-
       permission_mappings = config.fetch 'permission_mappings', {}
+
       membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
       attributes = mappings.values.map do |mapping_value|
         mapping_value = begin
@@ -154,10 +129,12 @@ module Socialcast
         end
       end.flatten
       attributes << membership_attribute
+
       user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
       count = 0
       output_file = File.join Dir.pwd, options[:output]
+
       Zlib::GzipWriter.open(output_file) do |gz|
         xml = Builder::XmlMarkup.new(:target => gz, :indent => 1)
         xml.instruct!
@@ -218,9 +195,42 @@ module Socialcast
     end
 
     no_tasks do
-      def load_configuration(path)
-        YAML.load_file path
+      def load_plugins(options)
+        Array.wrap(options[:plugins]).each do |plugin|
+          begin
+            require plugin
+          rescue LoadError => e
+            fail "Unable to load #{plugin}: #{e}"
+          end
+        end
       end
+
+      def ldap_config(options)
+        config_file = File.expand_path options[:config]
+
+        if options[:setup]
+          create_file config_file do
+            File.read File.join(File.dirname(__FILE__), '..', '..', 'config', 'ldap.yml')
+          end
+          say "Created config file: #{config_file}"
+          Kernel.exit 0
+        end
+
+        fail "Unable to load configuration file: #{config_file}" unless File.exists?(config_file)
+        say "Using configuration file: #{config_file}"
+        config = YAML.load_file config_file
+
+        mappings = config.fetch 'mappings', {}
+        required_mappings = %w{email first_name last_name}
+        required_mappings.each do |field|
+          unless mappings.has_key? field
+            fail "Missing required mapping: #{field}"
+          end
+        end
+
+        config
+      end
+
       def ldap_connections(config)
         config["connections"].each_pair do |key, connection|
           say "Connecting to #{key} at #{[connection["host"], connection["port"]].join(':')}"
@@ -229,12 +239,14 @@ module Socialcast
           yield key, connection, ldap
         end
       end
+
       def create_ldap_instance(connection)
         ldap = Net::LDAP.new :host => connection["host"], :port => connection["port"], :base => connection["basedn"]
         ldap.encryption connection['encryption'].to_sym if connection['encryption']
         ldap.auth connection["username"], connection["password"]
         ldap
       end
+
       def current_socialcast_users(http_config)
         current_socialcast_list = Set.new
         request_params = {:per_page => 500}
@@ -253,6 +265,7 @@ module Socialcast
         end
         current_socialcast_list
       end
+
       def create_socialcast_user_index_request(http_config, request_params)
         path_template = "/api/users?per_page=%{per_page}&page=%{page}"
         Socialcast.resource_for_path((path_template % request_params), http_config)
