@@ -183,34 +183,29 @@ module Socialcast
           user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
           user_info = JSON.parse(user_search_response)['users'].first
           if user_info && user_info['avatars'] && user_info['avatars']['is_system_default']
-            user_resource = Socialcast.resource_for_path "/api/users/#{user_info['id']}", http_config
+            say "Uploading photo for #{email}"
 
-            png = Regexp.new("\x89PNG".force_encoding("binary"))
-            jpg = Regexp.new("\xff\xd8\xff\xe0\x00\x10JFIF".force_encoding("binary"))
-            jpg2 = Regexp.new("\xff\xd8\xff\xe1(.*){2}Exif".force_encoding("binary"))
+            user_resource = Socialcast.resource_for_path "/api/users/#{user_info['id']}", http_config
             content_type = case profile_photo_data
-            when /^GIF8/
+            when /\AGIF8/
               'gif'
-            when /^#{png}/
+            when /\A\x89PNG/
               'png'
-            when /^#{jpg}/, /^#{jpg2}/
+            when /\A\xff\xd8\xff\xe0\x00\x10JFIF/, /\A\xff\xd8\xff\xe1(.*){2}Exif/
               'jpg'
             else
               say "Skipping photo for #{email}: unknown image format (supports .gif, .png, .jpg)"
               next
             end
 
-            # tell RestClient to upload this as a File
-            profile_photo_io = StringIO.new(profile_photo_data)
-            eval "def profile_photo_io.content_type
-              'image/#{content_type}'
+            tempfile = Tempfile.new(["photo_upload", ".#{content_type}"])
+            tempfile.write(profile_photo_data)
+            tempfile.rewind
+            begin
+              user_resource.put({ :user => { :profile_photo => { :data => tempfile } } })
+            ensure
+              tempfile.unlink
             end
-            def profile_photo_io.path
-              'image.#{content_type}'
-            end"
-
-            say "Uploading photo for #{email}"
-            user_resource.put({ :user => { :profile_photo => { :data => profile_photo_io } }, :multipart => true }, :accept => :json)
           end
         end
 
