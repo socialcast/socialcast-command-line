@@ -102,37 +102,15 @@ module Socialcast
     method_option :sanity_check, :type => :boolean, :default => false
     method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file."
     def provision
-      load_plugins options
       config = ldap_config options
+      load_plugins options
 
       http_config = config.fetch 'http', {}
       mappings = config.fetch 'mappings', {}
       permission_mappings = config.fetch 'permission_mappings', {}
 
-      membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
-      attributes = mappings.values.map do |mapping_value|
-        mapping_value = begin
-          mapping_value.camelize.constantize
-        rescue NameError
-          mapping_value
-        end
-        case mapping_value
-        when Hash
-          dup_mapping_value = mapping_value.dup
-          dup_mapping_value.delete("value")
-          dup_mapping_value.values
-        when String
-          mapping_value
-        when Class, Module
-          fail "Please add the attributes method to #{mapping_value}" unless mapping_value.respond_to?(:attributes)
-          mapping_value.attributes
-        end
-      end.flatten
-      attributes << membership_attribute
-
       user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
-      count = 0
       output_file = File.join Dir.pwd, options[:output]
 
       Zlib::GzipWriter.open(output_file) do |gz|
@@ -140,17 +118,11 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            ldap_connections(config) do |key, connection, ldap|
-              ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
-                next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
-
-                users.user do |user|
-                  entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
-                end
-                user_whitelist << user_identifier_list.map { |identifier| entry.grab(mappings[identifier]) }
-                count += 1
-                say "Scanned #{count} users" if ((count % 100) == 0)
-              end # search
+            each_ldap_entry do |ldap, entry|
+              users.user do |user|
+                entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
+              end
+              user_whitelist << user_identifier_list.map { |identifier| entry.grab(mappings[identifier]) }
             end # connections
           end # users
         end # export
@@ -194,6 +166,54 @@ module Socialcast
       File.delete(output_file) if (config['options']['delete_users_file'] || options[:delete_users_file])
     end
 
+    desc 'sync_photos', 'Upload default avatar photos from LDAP repository'
+    method_option :config, :default => 'ldap.yml', :aliases => '-c'
+    def sync_photos
+      config = ldap_config options
+      http_config = config.fetch 'http', {}
+      mappings = config.fetch 'mappings', {}
+      profile_photo_field = mappings.fetch('profile_photo')
+      fail "Must specify a 'profile_photo' mapping" unless profile_photo_field
+
+      search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
+
+      each_ldap_entry(config) do |ldap, entry|
+        if profile_photo_data = entry.grab(mappings['profile_photo'])
+          profile_photo_data = profile_photo_data.force_encoding('binary')
+
+          user_search_response = search_users_resource.get(:params => { :q => entry.grab(mappings['email']), :per_page => 1 }, :accept => :json)
+          user_info = JSON.parse(user_search_response)['users'].first
+          if user_info && user_info['avatars'] && user_info['avatars']['is_system_default']
+            user_resource = Socialcast.resource_for_path "/api/users/#{user_info['id']}", http_config
+
+            png = Regexp.new("\x89PNG".force_encoding("binary"))
+            jpg = Regexp.new("\xff\xd8\xff\xe0\x00\x10JFIF".force_encoding("binary"))
+            jpg2 = Regexp.new("\xff\xd8\xff\xe1(.*){2}Exif".force_encoding("binary"))
+            content_type = case profile_photo_data
+            when /^GIF8/
+              'gif'
+            when /^#{png}/
+              'png'
+            when /^#{jpg}/, /^#{jpg2}/
+              'jpg'
+            end
+
+            profile_photo_io = StringIO.new(profile_photo_data)
+
+            eval "def profile_photo_io.content_type
+              'image/#{content_type}'
+            end
+            def profile_photo_io.path
+              'image.#{content_type}'
+            end"
+
+            user_resource.put({ :user => { :profile_photo => { :data => profile_photo_io } }, :multipart => true }, :accept => :json)
+          end
+        end
+
+      end
+    end
+
     no_tasks do
       def load_plugins(options)
         Array.wrap(options[:plugins]).each do |plugin|
@@ -229,6 +249,44 @@ module Socialcast
         end
 
         config
+      end
+
+      def each_ldap_entry(config, &block)
+        count = 0
+        mappings = config.fetch 'mappings', {}
+        permission_mappings = config.fetch 'permission_mappings', {}
+
+        membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
+        attributes = mappings.values.map do |mapping_value|
+          mapping_value = begin
+            mapping_value.camelize.constantize
+          rescue NameError
+            mapping_value
+          end
+          case mapping_value
+          when Hash
+            dup_mapping_value = mapping_value.dup
+            dup_mapping_value.delete("value")
+            dup_mapping_value.values
+          when String
+            mapping_value
+          when Class, Module
+            fail "Please add the attributes method to #{mapping_value}" unless mapping_value.respond_to?(:attributes)
+            mapping_value.attributes
+          end
+        end.flatten
+        attributes << membership_attribute
+
+        ldap_connections(config) do |key, connection, ldap|
+          ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => attributes) do |entry|
+            next if entry.grab(mappings["email"]).blank? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).blank?)
+
+            yield ldap, entry
+
+            count += 1
+            say "Scanned #{count} users" if ((count % 100) == 0)
+          end
+        end
       end
 
       def ldap_connections(config)

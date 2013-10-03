@@ -30,10 +30,12 @@ mappings:
   first_name: givenName
   last_name: sn
   email: mail
+
   # only use employee_number if the email is unknown
   # employee_number: emp_id
   # only use unique_identifier if you do not wish to use email as the main user identification method
   # unique_identifier: samaccountname
+
   # To combine multiple ldap attributes into one Socialcast attribute use the following pattern
   # The key is the socialcast attribute and the value is a hash.  The hash requires a key of value
   # which will use the other keys to interpolate the values.
@@ -42,6 +44,7 @@ mappings:
   #   city: city
   #   state: state
   #   zip: zipcode
+
   # To populate the Socialcast org chart functionality you have two options.
   # If using AD you will most likely need to use the manager option. It works by
   # doing an additional ldap query for each user to find the email address for the
@@ -51,8 +54,10 @@ mappings:
   # mapped is the manager's email address. No additional queries will be performed.
   # This normally requires changes to your LDAP schema.
   # manager_email: manager_email
-  
 
+  # For the sync_photos command add mapping for the profile_photo attribute to an LDAP attribute
+  # profile_photo: jpegPhoto
+  # profile_photo: photo
 
 # Map LDAP Group Memberships to Socialcast Permissions
 permission_mappings:
