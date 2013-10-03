@@ -33,7 +33,7 @@ module Socialcast
     def resource_for_path(path, options = {}, debug = true)
       RestClient.log = Logger.new(STDOUT) if debug
       RestClient.proxy = credentials[:proxy] if credentials[:proxy]
-      url = ['http://', credentials[:domain], path].join
+      url = ['https://', credentials[:domain], path].join
       RestClient::Resource.new url, options.merge(default_options)
     end
   end
