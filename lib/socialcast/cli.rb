@@ -189,11 +189,11 @@ module Socialcast
 
             user_resource = Socialcast.resource_for_path "/api/users/#{user_info['id']}", http_config
             content_type = case profile_photo_data
-            when /\AGIF8/
+            when Regexp.new("\AGIF8", nil, 'n')
               'gif'
-            when /\A\x89PNG/
+            when Regexp.new('\A\x89PNG', nil, 'n')
               'png'
-            when /\A\xff\xd8\xff\xe0\x00\x10JFIF/, /\A\xff\xd8\xff\xe1(.*){2}Exif/
+            when Regexp.new("\A\xff\xd8\xff\xe0\x00\x10JFIF", nil, 'n'), Regexp.new("\A\xff\xd8\xff\xe1(.*){2}Exif", nil, 'n')
               'jpg'
             else
               say "Skipping photo for #{email}: unknown image format (supports .gif, .png, .jpg)"
