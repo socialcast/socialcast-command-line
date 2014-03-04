@@ -108,9 +108,7 @@ module Socialcast
             end
           end
         end
-
       end
-
     end
 
     private
