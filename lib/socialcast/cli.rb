@@ -173,7 +173,6 @@ module Socialcast
       config = ldap_config options
       http_config = config.fetch 'http', {}
       mappings = config.fetch 'mappings', {}
-      profile_photo_field = mappings.fetch('profile_photo')
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
@@ -283,7 +282,7 @@ module Socialcast
 
         ldap_connections(config) do |key, connection, ldap|
           ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(config)) do |entry|
-            
+
             if entry.grab(mappings["email"]).present? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).present?)
               yield ldap, entry
             end
