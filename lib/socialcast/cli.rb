@@ -173,6 +173,7 @@ module Socialcast
       config = ldap_config options
       http_config = config.fetch 'http', {}
       mappings = config.fetch 'mappings', {}
+      mappings.fetch('profile_photo')
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
