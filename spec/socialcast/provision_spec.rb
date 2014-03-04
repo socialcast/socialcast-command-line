@@ -19,7 +19,7 @@ describe Socialcast::Provision do
         Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        RestClient::Resource.any_instance.should_receive(:post).with(hash_including(:file => result), { :accept => :json })
 
         Socialcast::CLI.start ['provision']
       end
