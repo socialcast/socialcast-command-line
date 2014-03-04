@@ -182,7 +182,7 @@ describe Socialcast::CLI do
   describe '#provision' do
     before do
       Socialcast::CLI.instance_eval do # to supress warning from stubbing ldap_config
-        @no_tasks = true
+        @no_tasks, @no_commands = true, true
       end
     end
     context 'with 0 users found in ldap' do
