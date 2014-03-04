@@ -2,6 +2,8 @@ module Socialcast
   module Provision
     OUTPUT_FILE_NAME = 'users.xml.gz'
 
+    class ProvisionError < StandardError; end
+
     def self.provision(ldap_config, options)
       options = options.dup
       options[:output] ||= OUTPUT_FILE_NAME
@@ -41,13 +43,13 @@ module Socialcast
             filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
             filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
             ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => ldap_search_attributes(ldap_config))
-            Kernel.abort("Found user marked for termination that should not be terminated: #{user_identifiers}") unless ldap_result.blank?
+            raise ProvisionError.new "Found user marked for termination that should not be terminated: #{user_identifiers}" unless ldap_result.blank?
           end
         end
       end
 
       if user_whitelist.empty? && !options[:force]
-        Kernel.abort("Skipping upload to Socialcast since no users were found")
+        raise ProvisionError.new "Skipping upload to Socialcast since no users were found"
       else
         puts "Uploading dataset to Socialcast..."
         resource = Socialcast.resource_for_path '/api/users/provision', http_config
@@ -59,7 +61,7 @@ module Socialcast
             resource.post request_params, :accept => :json
           end
         rescue RestClient::Unauthorized => e
-          Kernel.abort "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
+          raise ProvisionError.new "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
         end
         puts "Finished"
       end

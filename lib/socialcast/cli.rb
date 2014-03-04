@@ -109,6 +109,9 @@ module Socialcast
       load_plugins options
 
       Socialcast::Provision.provision config, options
+
+    rescue Socialcast::Provision::ProvisionError => e
+      Kernel.abort e.message
     end
 
     desc 'sync_photos', 'Upload default avatar photos from LDAP repository'
