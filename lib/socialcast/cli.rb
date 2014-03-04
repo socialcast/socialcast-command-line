@@ -94,15 +94,15 @@ module Socialcast
     end
 
     desc 'provision', 'provision users from ldap compatible user repository'
-    method_option :config, :default => 'ldap.yml', :aliases => '-c'
-    method_option :output, :default => 'users.xml.gz', :aliases => '-o'
-    method_option :setup, :type => :boolean
-    method_option :delete_users_file, :type => :boolean
-    method_option :test, :type => :boolean
-    method_option :skip_emails, :type => :boolean
-    method_option :force, :type => :boolean, :aliases => '-f', :default => false
-    method_option :sanity_check, :type => :boolean, :default => false
-    method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file."
+    method_option :config, :default => 'ldap.yml', :aliases => '-c', :desc => 'Path to ldap config file'
+    method_option :output, :default => 'users.xml.gz', :aliases => '-o', :desc => 'Name of the output file'
+    method_option :setup, :type => :boolean, :desc => 'Create an example ldap config file and exit'
+    method_option :delete_users_file, :type => :boolean, :desc => 'Delete the output file'
+    method_option :test, :type => :boolean, :desc => 'Do not persist changes'
+    method_option :skip_emails, :type => :boolean, :desc => 'Do not send signup emails to users'
+    method_option :force, :type => :boolean, :aliases => '-f', :default => false, :desc => 'Proceed with provisioning even if no users are found, which would deactivate all users in the community'
+    method_option :sanity_check, :type => :boolean, :default => false, :desc => 'Double check that users marked for termination really no longer exist'
+    method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file"
     def provision
       config = ldap_config options
       load_plugins options
