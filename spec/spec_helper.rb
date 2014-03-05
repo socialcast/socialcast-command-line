@@ -2,6 +2,7 @@ require 'rubygems'
 require 'bundler/setup'
 require 'webmock/rspec'
 require 'rspec/mocks'
+require 'pry'
 RSpec::Mocks::setup(Object.new)
 
 require 'socialcast/cli'
