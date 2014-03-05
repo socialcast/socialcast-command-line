@@ -103,7 +103,7 @@ module Socialcast
       config = ldap_config options
       load_plugins options
 
-      Socialcast::Provision.provision config, options
+      Socialcast::Provision.new(config, options).provision
 
     rescue Socialcast::Provision::ProvisionError => e
       Kernel.abort e.message
@@ -114,7 +114,7 @@ module Socialcast
     def sync_photos
       config = ldap_config options
 
-      Socialcast::Provision.sync_photos(config)
+      Socialcast::Provision.new(config).sync_photos
     end
 
     no_tasks do

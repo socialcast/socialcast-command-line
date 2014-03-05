@@ -22,7 +22,7 @@ describe Socialcast::Provision do
 
         RestClient::Resource.any_instance.should_receive(:post).with(hash_including(:file => result), { :accept => :json })
 
-        Socialcast::Provision.provision(ldap_default_config, {})
+        Socialcast::Provision.new(ldap_default_config, {}).provision
       end
       it "includes the user" do
         result.gsub(/\s/, '').should == %Q[

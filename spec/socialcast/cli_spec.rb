@@ -507,7 +507,7 @@ describe Socialcast::CLI do
         ldap_return = double("ldapreturn")
         ldap_return.should_receive(:search).with(include(:filter => Net::LDAP::Filter.construct("(&(mail=sean@example.com)(mail=*))"))).and_return(@valid_entry)
 
-        Socialcast::Provision.should_receive(:create_ldap_instance).and_return(ldap_search_block, ldap_return)
+        Socialcast::Provision.any_instance.should_receive(:create_ldap_instance).and_return(ldap_search_block, ldap_return)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -515,7 +515,7 @@ describe Socialcast::CLI do
         Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        Socialcast::Provision.should_receive(:create_socialcast_user_index_request).and_return(
+        Socialcast::Provision.any_instance.should_receive(:create_socialcast_user_index_request).and_return(
           double("request1", :get => {"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json),
           double("request2", :get => {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json),
           double("empty_request", :get => {"users" => []}.to_json)
