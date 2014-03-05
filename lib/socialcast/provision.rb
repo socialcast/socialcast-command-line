@@ -17,7 +17,6 @@ module Socialcast
       options[:output] ||= OUTPUT_FILE_NAME
 
       http_config = ldap_config.fetch 'http', {}
-      mappings = ldap_config.fetch 'mappings', {}
       permission_mappings = ldap_config.fetch 'permission_mappings', {}
 
       user_identifier_list = %w{email unique_identifier employee_number}
@@ -29,11 +28,12 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            each_ldap_entry(ldap_config) do |ldap, entry|
+            each_ldap_entry(ldap_config) do |ldap, entry, ldap_connection_name|
+              attr_mappings = attribute_mappings(ldap_config, ldap_connection_name)
               users.user do |user|
-                entry.build_xml_from_mappings user, ldap, mappings, permission_mappings
+                entry.build_xml_from_mappings user, ldap, attr_mappings, permission_mappings
               end
-              user_whitelist << user_identifier_list.map { |identifier| entry.grab(mappings[identifier]) }
+              user_whitelist << user_identifier_list.map { |identifier| entry.grab(attr_mappings[identifier]) }
             end # connections
           end # users
         end # export
@@ -41,16 +41,17 @@ module Socialcast
 
       if options[:sanity_check]
         puts "Sanity checking users currently marked as needing to be terminated"
-        ldap_connections(ldap_config) do |key, connection, ldap|
+        ldap_connections(ldap_config) do |ldap_connection_name, connection, ldap|
+          attr_mappings = attribute_mappings(ldap_config, ldap_connection_name)
           (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
             combined_filters = []
             user_identifier_list.each_with_index do |identifier, index|
-              combined_filters << ((mappings[identifier].blank? || user_identifiers[index].nil?) ? nil : Net::LDAP::Filter.eq(mappings[identifier], user_identifiers[index]))
+              combined_filters << ((attr_mappings[identifier].blank? || user_identifiers[index].nil?) ? nil : Net::LDAP::Filter.eq(attr_mappings[identifier], user_identifiers[index]))
             end
             combined_filters.compact!
             filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
             filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
-            ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => ldap_search_attributes(ldap_config))
+            ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => ldap_search_attributes(ldap_config, ldap_connection_name))
             raise ProvisionError.new "Found user marked for termination that should not be terminated: #{user_identifiers}" unless ldap_result.blank?
           end
         end
@@ -78,14 +79,17 @@ module Socialcast
 
     def self.sync_photos(ldap_config)
       http_config = ldap_config.fetch 'http', {}
-      mappings = ldap_config.fetch 'mappings', {}
-      mappings.fetch('profile_photo')
+
+      ldap_config["connections"].keys.each do |ldap_connection_name|
+        attribute_mappings(ldap_config, ldap_connection_name).fetch('profile_photo')
+      end
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
-      each_ldap_entry(ldap_config) do |ldap, entry|
-        email = entry.grab(mappings['email'])
-        if profile_photo_data = entry.grab(mappings['profile_photo'])
+      each_ldap_entry(ldap_config) do |ldap, entry, ldap_connection_name|
+        attr_mappings = attribute_mappings(ldap_config, ldap_connection_name)
+        email = entry.grab(attr_mappings['email'])
+        if profile_photo_data = entry.grab(attr_mappings['profile_photo'])
           profile_photo_data = profile_photo_data.force_encoding('binary')
 
           user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
@@ -123,13 +127,13 @@ module Socialcast
 
     def self.each_ldap_entry(config, &block)
       count = 0
-      mappings = config.fetch 'mappings', {}
 
-      ldap_connections(config) do |key, connection, ldap|
-        ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(config)) do |entry|
+      ldap_connections(config) do |ldap_connection_name, connection, ldap|
+        attr_mappings = attribute_mappings(config, ldap_connection_name)
+        ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(config, ldap_connection_name)) do |entry|
 
-          if entry.grab(mappings["email"]).present? || (mappings.has_key?("unique_identifier") && entry.grab(mappings["unique_identifier"]).present?)
-            yield ldap, entry
+          if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
+            yield ldap, entry, ldap_connection_name
           end
 
           count += 1
@@ -141,11 +145,11 @@ module Socialcast
 
 
     def self.ldap_connections(config)
-      config["connections"].each_pair do |key, connection|
-        puts "Connecting to #{key} at #{[connection["host"], connection["port"]].join(':')}"
+      config["connections"].each_pair do |ldap_connection_name, connection|
+        puts "Connecting to #{ldap_connection_name} at #{[connection["host"], connection["port"]].join(':')}"
         ldap = create_ldap_instance(connection)
         puts "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
-        yield key, connection, ldap
+        yield ldap_connection_name, connection, ldap
       end
     end
 
@@ -156,12 +160,12 @@ module Socialcast
       ldap
     end
 
-    def self.ldap_search_attributes(config)
-      mappings = config.fetch 'mappings', {}
+    def self.ldap_search_attributes(config, ldap_connection_name)
+      attr_mappings = attribute_mappings(config, ldap_connection_name)
       permission_mappings = config.fetch 'permission_mappings', {}
 
       membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
-      attributes = mappings.values.map do |mapping_value|
+      attributes = attr_mappings.values.map do |mapping_value|
         mapping_value = begin
           mapping_value.camelize.constantize
         rescue NameError
@@ -204,6 +208,10 @@ module Socialcast
     def self.create_socialcast_user_index_request(http_config, request_params)
       path_template = "/api/users?per_page=%{per_page}&page=%{page}"
       Socialcast.resource_for_path((path_template % request_params), http_config)
+    end
+
+    def self.attribute_mappings(ldap_config, connection_name)
+      ldap_config.fetch 'mappings', {}
     end
   end
 end

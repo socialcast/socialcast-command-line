@@ -5,14 +5,16 @@ describe Socialcast::Provision do
 
   describe ".provision" do
     let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
+    let(:result) { '' }
 
     context "when a user is found" do
-      let(:result) { '' }
       before do
         entry = Net::LDAP::Entry.new("dc=example,dc=com")
         entry[:mail] = 'user@example.com'
+        entry[:givenName] = 'first name'
+        entry[:sn] = 'last name'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(entry)
+        Net::LDAP.any_instance.should_receive(:search).with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
 
         Zlib::GzipWriter.stub(:open).and_yield(result)
         Socialcast.stub(:credentials).and_return(credentials)
@@ -28,8 +30,8 @@ describe Socialcast::Provision do
          <export>
           <users type="array">
            <user>
-            <first_name/>
-            <last_name/>
+            <first_name>first name</first_name>
+            <last_name>last name</last_name>
             <contact-info>
              <email>user@example.com</email>
             </contact-info>
