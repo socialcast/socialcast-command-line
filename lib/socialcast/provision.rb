@@ -43,7 +43,7 @@ module Socialcast
 
       if @options[:sanity_check]
         puts "Sanity checking users currently marked as needing to be terminated"
-        ldap_connections do |ldap_connection_name, connection, ldap|
+        each_ldap_connection do |ldap_connection_name, connection, ldap|
           attr_mappings = attribute_mappings(ldap_connection_name)
           (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
             combined_filters = []
@@ -129,7 +129,7 @@ module Socialcast
     def each_ldap_entry(&block)
       count = 0
 
-      ldap_connections do |ldap_connection_name, connection, ldap|
+      each_ldap_connection do |ldap_connection_name, connection, ldap|
         attr_mappings = attribute_mappings(ldap_connection_name)
         perm_mappings = permission_mappings(ldap_connection_name)
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(ldap_connection_name)) do |entry|
@@ -146,7 +146,7 @@ module Socialcast
     end
 
 
-    def ldap_connections
+    def each_ldap_connection
       @ldap_config["connections"].each_pair do |ldap_connection_name, connection|
         puts "Connecting to #{ldap_connection_name} at #{[connection["host"], connection["port"]].join(':')}"
         ldap = create_ldap_instance(connection)
