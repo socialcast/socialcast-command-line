@@ -214,7 +214,13 @@ module Socialcast
 
     def attribute_mappings(connection_name)
       @attribute_mappings ||= {}
-      @attribute_mappings[connection_name] ||= @ldap_config.fetch 'mappings', {}
+
+      unless @attribute_mappings[connection_name]
+        @attribute_mappings[connection_name] = @ldap_config['connections'][connection_name].fetch 'mappings', nil
+        @attribute_mappings[connection_name] ||= @ldap_config.fetch 'mappings', {}
+      end
+
+      @attribute_mappings[connection_name]
     end
 
     def permission_mappings(connection_name)
