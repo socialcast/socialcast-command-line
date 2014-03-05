@@ -43,7 +43,8 @@ module Socialcast
 
       if @options[:sanity_check]
         puts "Sanity checking users currently marked as needing to be terminated"
-        ldap_connections do |ldap_connection_name, connection, ldap, attr_mappings|
+        ldap_connections do |ldap_connection_name, connection, ldap|
+          attr_mappings = attribute_mappings(ldap_connection_name)
           (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
             combined_filters = []
             user_identifier_list.each_with_index do |identifier, index|
@@ -128,7 +129,9 @@ module Socialcast
     def each_ldap_entry(&block)
       count = 0
 
-      ldap_connections do |ldap_connection_name, connection, ldap, attr_mappings, perm_mappings|
+      ldap_connections do |ldap_connection_name, connection, ldap|
+        attr_mappings = attribute_mappings(ldap_connection_name)
+        perm_mappings = permission_mappings(ldap_connection_name)
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(ldap_connection_name)) do |entry|
 
           if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
@@ -148,9 +151,7 @@ module Socialcast
         puts "Connecting to #{ldap_connection_name} at #{[connection["host"], connection["port"]].join(':')}"
         ldap = create_ldap_instance(connection)
         puts "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
-        attr_mappings = attribute_mappings(ldap_connection_name)
-        perm_mappings = permission_mappings(ldap_connection_name)
-        yield ldap_connection_name, connection, ldap, attr_mappings, perm_mappings
+        yield ldap_connection_name, connection, ldap
       end
     end
 
@@ -212,11 +213,13 @@ module Socialcast
     end
 
     def attribute_mappings(connection_name)
-      @ldap_config.fetch 'mappings', {}
+      @attribute_mappings ||= {}
+      @attribute_mappings[connection_name] ||= @ldap_config.fetch 'mappings', {}
     end
 
     def permission_mappings(connection_name)
-      @ldap_config.fetch 'permission_mappings', {}
+      @permission_mappings ||= {}
+      @permission_mappings[connection_name] ||= @ldap_config.fetch 'permission_mappings', {}
     end
   end
 end
