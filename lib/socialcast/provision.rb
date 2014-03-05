@@ -17,7 +17,6 @@ module Socialcast
       options[:output] ||= OUTPUT_FILE_NAME
 
       http_config = ldap_config.fetch 'http', {}
-      permission_mappings = ldap_config.fetch 'permission_mappings', {}
 
       user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
@@ -28,9 +27,9 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            each_ldap_entry(ldap_config) do |ldap, entry, attr_mappings|
+            each_ldap_entry(ldap_config) do |ldap, entry, attr_mappings, perm_mappings|
               users.user do |user|
-                entry.build_xml_from_mappings user, ldap, attr_mappings, permission_mappings
+                entry.build_xml_from_mappings user, ldap, attr_mappings, perm_mappings
               end
               user_whitelist << user_identifier_list.map { |identifier| entry.grab(attr_mappings[identifier]) }
             end # connections
@@ -125,11 +124,11 @@ module Socialcast
     def self.each_ldap_entry(config, &block)
       count = 0
 
-      ldap_connections(config) do |ldap_connection_name, connection, ldap, attr_mappings|
+      ldap_connections(config) do |ldap_connection_name, connection, ldap, attr_mappings, perm_mappings|
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(config, ldap_connection_name)) do |entry|
 
           if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
-            yield ldap, entry, attr_mappings
+            yield ldap, entry, attr_mappings, perm_mappings
           end
 
           count += 1
@@ -146,7 +145,8 @@ module Socialcast
         ldap = create_ldap_instance(connection)
         puts "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
         attr_mappings = attribute_mappings(config, ldap_connection_name)
-        yield ldap_connection_name, connection, ldap, attr_mappings
+        perm_mappings = permission_mappings(config, ldap_connection_name)
+        yield ldap_connection_name, connection, ldap, attr_mappings, perm_mappings
       end
     end
 
@@ -159,9 +159,9 @@ module Socialcast
 
     def self.ldap_search_attributes(config, ldap_connection_name)
       attr_mappings = attribute_mappings(config, ldap_connection_name)
-      permission_mappings = config.fetch 'permission_mappings', {}
+      perm_mappings = permission_mappings(config, ldap_connection_name)
 
-      membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
+      membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
       attributes = attr_mappings.values.map do |mapping_value|
         mapping_value = begin
           mapping_value.camelize.constantize
@@ -209,6 +209,10 @@ module Socialcast
 
     def self.attribute_mappings(ldap_config, connection_name)
       ldap_config.fetch 'mappings', {}
+    end
+
+    def self.permission_mappings(ldap_config, connection_name)
+      ldap_config.fetch 'permission_mappings', {}
     end
   end
 end
