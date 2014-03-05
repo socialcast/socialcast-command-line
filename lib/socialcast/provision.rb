@@ -28,8 +28,7 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            each_ldap_entry(ldap_config) do |ldap, entry, ldap_connection_name|
-              attr_mappings = attribute_mappings(ldap_config, ldap_connection_name)
+            each_ldap_entry(ldap_config) do |ldap, entry, attr_mappings|
               users.user do |user|
                 entry.build_xml_from_mappings user, ldap, attr_mappings, permission_mappings
               end
@@ -86,8 +85,7 @@ module Socialcast
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
-      each_ldap_entry(ldap_config) do |ldap, entry, ldap_connection_name|
-        attr_mappings = attribute_mappings(ldap_config, ldap_connection_name)
+      each_ldap_entry(ldap_config) do |ldap, entry, attr_mappings|
         email = entry.grab(attr_mappings['email'])
         if profile_photo_data = entry.grab(attr_mappings['profile_photo'])
           profile_photo_data = profile_photo_data.force_encoding('binary')
@@ -133,7 +131,7 @@ module Socialcast
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(config, ldap_connection_name)) do |entry|
 
           if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
-            yield ldap, entry, ldap_connection_name
+            yield ldap, entry, attr_mappings
           end
 
           count += 1
