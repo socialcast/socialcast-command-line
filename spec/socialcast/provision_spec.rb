@@ -1,10 +1,10 @@
 require 'spec_helper'
 
 describe Socialcast::Provision do
-  let(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
+  let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
 
   describe ".provision" do
-    let(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
+    let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
 
     context "when a user is found" do
       let(:result) { '' }
@@ -16,12 +16,11 @@ describe Socialcast::Provision do
 
         Zlib::GzipWriter.stub(:open).and_yield(result)
         Socialcast.stub(:credentials).and_return(credentials)
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
 
         RestClient::Resource.any_instance.should_receive(:post).with(hash_including(:file => result), { :accept => :json })
 
-        Socialcast::CLI.start ['provision']
+        Socialcast::Provision.provision(ldap_default_config, {})
       end
       it "includes the user" do
         result.gsub(/\s/, '').should == %Q[
