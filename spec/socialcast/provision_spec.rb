@@ -13,9 +13,6 @@ describe Socialcast::Provision do
           entry_attributes.each_pair do |attr, value|
             e[attr] = value
           end
-          e[:mail] = 'user@example.com'
-          e[:givenName] = 'first name'
-          e[:sn] = 'last name'
         end
       end
 
