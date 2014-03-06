@@ -7,6 +7,9 @@ describe Socialcast::Provision do
     let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
     let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
     let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+    let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
+    let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
+    let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
     let(:result) { '' }
     def create_entry(entry_attributes)
       Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
@@ -161,6 +164,43 @@ describe Socialcast::Provision do
                 <role>sbi_admin</role>
                 <role>town_hall_admin</role>
               </roles>]
+        end
+        it_behaves_like "permission attributes are mapped properly"
+      end
+
+      context "with account_types mapping and no role mappings" do
+        let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
+        before do
+          Socialcast::Provision.new(ldap_with_account_type_without_roles_config, {}).provision
+        end
+        let(:expected_permission_xml) do
+          %Q[<account-type>member</account-type>]
+        end
+        it_behaves_like "permission attributes are mapped properly"
+      end
+
+      context "with role mappings and no account_type mapping" do
+        let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
+        before do
+          Socialcast::Provision.new(ldap_with_roles_without_account_type_config, {}).provision
+        end
+        let(:expected_permission_xml) do
+          %Q[<account-type>member</account-type>
+              <roles type="array">
+                <role>sbi_admin</role>
+                <role>town_hall_admin</role>
+              </roles>]
+        end
+        it_behaves_like "permission attributes are mapped properly"
+      end
+
+      context "without account_type or roles mappings" do
+        let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
+        before do
+          Socialcast::Provision.new(ldap_without_account_type_or_roles_config, {}).provision
+        end
+        let(:expected_permission_xml) do
+          %Q[<account-type>member</account-type>]
         end
         it_behaves_like "permission attributes are mapped properly"
       end
