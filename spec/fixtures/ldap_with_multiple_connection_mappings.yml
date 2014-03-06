@@ -22,17 +22,6 @@ connections:
       email: mailCon2
       first_name: firstName
 
-# LDAP attribute mappings
-mappings: 
-  first_name: givenName
-  last_name: sn
-  email: mail
-  # only use employee_number if the email is unknown
-  # employee_number: emp_id
-  # only use unique_identifier if you do not wish to use email as the main user identification method
-  # unique_identifier: samaccountname
-
-
 # Map LDAP Group Memberships to Socialcast Permissions
 permission_mappings:
   # configure LDAP field for group memberships (ex: memberof, isMemberOf, etc)
