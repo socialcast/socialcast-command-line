@@ -12,6 +12,7 @@ describe Socialcast::Provision do
     let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
     let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
     let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
+    let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
     let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
     let(:result) { '' }
     def create_entry(entry_attributes)
@@ -26,8 +27,43 @@ describe Socialcast::Provision do
       Zlib::GzipWriter.stub(:open).and_yield(result)
       Socialcast.stub(:credentials).and_return(credentials)
       File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
+    end
 
-      RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+    context "when the entry has an email" do
+      before do
+        entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+
+        Socialcast::Provision.new(ldap_default_config, {}).provision
+      end
+      it "puts the user in the output file" do
+        result.should =~ /user@example.com/
+      end
+    end
+    context "when the entry has a unique_identifier" do
+      before do
+        entry = create_entry :uid => 'userID', :givenName => 'first name', :sn => 'last name'
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+
+        Socialcast::Provision.new(ldap_with_unique_identifier_config, {}).provision
+      end
+      it "puts the user in the output file" do
+        result.should =~ /userID/
+      end
+    end
+    context "when the entry has no email or unique_identifier" do
+      before do
+        entry = create_entry :mail => '', :givenName => 'first name', :sn => 'last name'
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        RestClient::Resource.any_instance.should_not_receive(:post)
+      end
+      it "does not put the user in the output file" do
+        expect do
+          Socialcast::Provision.new(ldap_default_config, {}).provision
+        end.to raise_error(Socialcast::Provision::ProvisionError, "Skipping upload to Socialcast since no users were found")
+      end
     end
     context "attribute mappings" do
       shared_examples "attributes are mapped properly" do
@@ -51,6 +87,10 @@ describe Socialcast::Provision do
            </export>
           ].gsub(/\s/, '')
         end
+      end
+
+      before do
+        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
       end
 
       context "with mappings at the global level" do
@@ -142,6 +182,10 @@ describe Socialcast::Provision do
 
       let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :isMemberOf => ldap_groups }
       let(:ldap_group_attribute) { 'isMemberOf' }
+
+      before do
+        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+      end
 
       context "with roles for an external contributor" do
         let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
