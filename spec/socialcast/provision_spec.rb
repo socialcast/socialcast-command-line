@@ -13,7 +13,8 @@ describe Socialcast::Provision do
     end
     context "attribute mappings" do
       let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
-      let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mappings.yml')) }
+      let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
+      let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
       let(:result) { '' }
 
       before do
@@ -26,7 +27,6 @@ describe Socialcast::Provision do
 
       shared_examples "attributes are mapped properly" do
         before do
-          Socialcast::Provision.new(ldap_config, {}).provision
         end
         it do
           users = user_attributes.inject('') do |users_str, user_attrs|
@@ -51,10 +51,11 @@ describe Socialcast::Provision do
       end
 
       context "with mappings at the global level" do
-        let(:ldap_config) { ldap_default_config }
         before do
           entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::Provision.new(ldap_default_config, {}).provision
         end
         let(:user_attributes) do
           [%Q[<first_name>first name</first_name>
@@ -66,16 +67,46 @@ describe Socialcast::Provision do
         it_behaves_like "attributes are mapped properly"
       end
 
-      context "with mappings at the connection level" do
-        let(:ldap_config) { ldap_connection_mapping_config }
+      context "with mappings at the connection level for one connection" do
         before do
           entry = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::Provision.new(ldap_connection_mapping_config, {}).provision
         end
         let(:user_attributes) do
           [%Q[<contact-info>
                <email>user@example.com</email>
               </contact-info>]]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
+      context "with mappings at the connection level for multiple connections" do
+        before do
+          provision_instance = Socialcast::Provision.new(ldap_multiple_connection_mapping_config, {})
+
+          ldap_instance1 = double
+          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
+          entry1 = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+          ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
+
+          ldap_instance2 = double
+          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
+          entry2 = create_entry :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
+          ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
+
+          provision_instance.provision
+        end
+        let(:user_attributes) do
+          [%Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>],
+          %Q[<first_name>first name2</first_name>
+              <contact-info>
+               <email>user2@example.com</email>
+              </contact-info>]
+          ]
         end
         it_behaves_like "attributes are mapped properly"
       end
