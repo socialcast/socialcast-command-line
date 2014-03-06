@@ -8,7 +8,7 @@ require 'fileutils'
 
 module Socialcast
   class Provision
-    OUTPUT_FILE_NAME = 'users.xml.gz'
+    DEFAULT_OUTPUT_FILE = 'users.xml.gz'
 
     class ProvisionError < StandardError; end
 
@@ -16,7 +16,7 @@ module Socialcast
       @ldap_config = ldap_config.dup
       @options = options.dup
 
-      @options[:output] ||= OUTPUT_FILE_NAME
+      @options[:output] ||= DEFAULT_OUTPUT_FILE
     end
 
     def provision

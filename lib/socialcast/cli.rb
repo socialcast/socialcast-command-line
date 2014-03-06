@@ -91,7 +91,7 @@ module Socialcast
 
     desc 'provision', 'provision users from ldap compatible user repository'
     method_option :config, :default => 'ldap.yml', :aliases => '-c', :desc => 'Path to ldap config file'
-    method_option :output, :default => Socialcast::Provision::OUTPUT_FILE_NAME, :aliases => '-o', :desc => 'Name of the output file'
+    method_option :output, :default => Socialcast::Provision::DEFAULT_OUTPUT_FILE, :aliases => '-o', :desc => 'Name of the output file'
     method_option :setup, :type => :boolean, :desc => 'Create an example ldap config file and exit'
     method_option :delete_users_file, :type => :boolean, :desc => 'Delete the output file'
     method_option :test, :type => :boolean, :desc => 'Do not persist changes'
