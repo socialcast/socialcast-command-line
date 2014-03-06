@@ -29,9 +29,9 @@ describe Socialcast::Provision do
         before do
         end
         it do
-          users = user_attributes.inject('') do |users_str, user_attrs|
+          users = Array.wrap(expected_attribute_xml).inject('') do |users_str, user_xml|
             users_str << %Q[<user>
-              #{user_attrs}
+              #{user_xml}
               <custom-fields type="array">
               </custom-fields>
               <account-type>member</account-type>
@@ -57,12 +57,12 @@ describe Socialcast::Provision do
 
           Socialcast::Provision.new(ldap_default_config, {}).provision
         end
-        let(:user_attributes) do
-          [%Q[<first_name>first name</first_name>
+        let(:expected_attribute_xml) do
+          %Q[<first_name>first name</first_name>
               <last_name>last name</last_name>
               <contact-info>
                <email>user@example.com</email>
-              </contact-info>]]
+              </contact-info>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -74,10 +74,10 @@ describe Socialcast::Provision do
 
           Socialcast::Provision.new(ldap_connection_mapping_config, {}).provision
         end
-        let(:user_attributes) do
-          [%Q[<contact-info>
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
                <email>user@example.com</email>
-              </contact-info>]]
+              </contact-info>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -98,7 +98,7 @@ describe Socialcast::Provision do
 
           provision_instance.provision
         end
-        let(:user_attributes) do
+        let(:expected_attribute_xml) do
           [%Q[<contact-info>
                <email>user@example.com</email>
               </contact-info>],
