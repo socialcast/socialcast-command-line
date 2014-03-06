@@ -133,7 +133,6 @@ module Socialcast
         attr_mappings = attribute_mappings(ldap_connection_name)
         perm_mappings = permission_mappings(ldap_connection_name)
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(ldap_connection_name)) do |entry|
-
           if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
             yield ldap, entry, attr_mappings, perm_mappings
           end
@@ -225,7 +224,13 @@ module Socialcast
 
     def permission_mappings(connection_name)
       @permission_mappings ||= {}
-      @permission_mappings[connection_name] ||= @ldap_config.fetch 'permission_mappings', {}
+
+      unless @permission_mappings[connection_name]
+        @permission_mappings[connection_name] = @ldap_config['connections'][connection_name].fetch 'permission_mappings', nil
+        @permission_mappings[connection_name] ||= @ldap_config.fetch 'permission_mappings', {}
+      end
+
+      @permission_mappings[connection_name]
     end
   end
 end
