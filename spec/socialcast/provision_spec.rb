@@ -1,9 +1,13 @@
 require 'spec_helper'
 
 describe Socialcast::Provision do
-  let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
 
   describe ".provision" do
+    let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
+    let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
+    let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
+    let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+    let(:result) { '' }
     def create_entry(entry_attributes)
       Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
         entry_attributes.each_pair do |attr, value|
@@ -11,23 +15,16 @@ describe Socialcast::Provision do
         end
       end
     end
+
+    before do
+      Zlib::GzipWriter.stub(:open).and_yield(result)
+      Socialcast.stub(:credentials).and_return(credentials)
+      File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
+
+      RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+    end
     context "attribute mappings" do
-      let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
-      let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
-      let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
-      let(:result) { '' }
-
-      before do
-        Zlib::GzipWriter.stub(:open).and_yield(result)
-        Socialcast.stub(:credentials).and_return(credentials)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
-
-        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
-      end
-
       shared_examples "attributes are mapped properly" do
-        before do
-        end
         it do
           users = Array.wrap(expected_attribute_xml).inject('') do |users_str, user_xml|
             users_str << %Q[<user>
@@ -109,6 +106,63 @@ describe Socialcast::Provision do
           ]
         end
         it_behaves_like "attributes are mapped properly"
+      end
+    end
+    context "permission attribute mappings" do
+      shared_examples "permission attributes are mapped properly" do
+        it do
+          users = Array.wrap(expected_permission_xml).inject('') do |users_str, permission_xml|
+            users_str << %Q[<user>
+              <first_name>first name</first_name>
+              <last_name>last name</last_name>
+              <contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array">
+              </custom-fields>
+              #{permission_xml}
+            </user>]
+          end
+          result.gsub(/\s/, '').should == %Q[
+           <?xml version="1.0" encoding="UTF-8"?>
+           <export>
+            <users type="array">
+            #{users}
+            </users>
+           </export>
+          ].gsub(/\s/, '')
+        end
+      end
+
+      before do
+        entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :isMemberOf => ldap_groups
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+
+      context "with roles for an external contributor" do
+        let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
+        before do
+          Socialcast::Provision.new(ldap_default_config, {}).provision
+        end
+        let(:expected_permission_xml) do
+          %Q[<account-type>external</account-type>]
+        end
+        it_behaves_like "permission attributes are mapped properly"
+      end
+
+      context "with roles for a member" do
+        let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
+        before do
+          Socialcast::Provision.new(ldap_default_config, {}).provision
+        end
+        let(:expected_permission_xml) do
+          %Q[<account-type>member</account-type>
+              <roles type="array">
+                <role>sbi_admin</role>
+                <role>town_hall_admin</role>
+              </roles>]
+        end
+        it_behaves_like "permission attributes are mapped properly"
       end
     end
   end
