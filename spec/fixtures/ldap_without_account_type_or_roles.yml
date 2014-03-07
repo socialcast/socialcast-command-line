@@ -1,0 +1,42 @@
+--- 
+# LDAP connections
+connections:
+  example_connection_1:
+    username: "cn=Directory Manager"
+    password: "test"
+    host: localhost
+    port: 1389
+    basedn: "dc=example,dc=com"
+    filter: "(mail=*)"
+
+
+# LDAP attribute mappings
+mappings: 
+  first_name: givenName
+  last_name: sn
+  email: mail
+  # only use employee_number if the email is unknown
+  # employee_number: emp_id
+  # only use unique_identifier if you do not wish to use email as the main user identification method
+  # unique_identifier: samaccountname
+
+
+# Map LDAP Group Memberships to Socialcast Permissions
+permission_mappings:
+  # configure LDAP field for group memberships (ex: memberof, isMemberOf, etc)
+  attribute_name: isMemberOf
+
+# general script options
+options:
+  # cleanup the extracted ldap data file after run is complete
+  delete_users_file: false
+  # skip sending emails to newly activated users
+  skip_emails: true
+  # do not actually provision accounts
+  # useful during testing
+  test: true
+
+
+# http options for connecting to Socialcast servers
+http:
+  timeout: 660

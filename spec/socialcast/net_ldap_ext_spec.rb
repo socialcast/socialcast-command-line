@@ -79,12 +79,17 @@ describe Net::LDAP::Entry do
         entry[:mail] = 'sean@example.com'
         entry
       }
-      it "returns the result of the Class run method" do
+      before do
         class Mail
           def self.run(entry)
             return "#{entry[:mail].first.gsub(/a/,'b')}"
           end
         end
+      end
+      after do
+        Object.send(:remove_const, :Mail)
+      end
+      it "returns the result of the Class run method" do
         subject.grab("mail").should == "sebn@exbmple.com"
       end
     end

@@ -1,11 +1,22 @@
 require 'spec_helper'
 
 describe Socialcast::CLI do
+  let(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
+  let(:ldap_default_config_file) { File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml') }
+  let(:ldap_with_profile_photo_config_file) { File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_profile_photo.yml') }
+  let(:ldap_default_config) { YAML.load_file(ldap_default_config_file) }
+  let(:ldap_with_array_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_array_permission_mapping.yml')) }
+  let(:ldap_with_interpolated_values_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_interpolated_values.yml')) }
+  let(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
+  let(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
+  let(:ldap_with_profile_photo_config) { YAML.load_file(ldap_with_profile_photo_config_file) }
+  let(:ldap_without_permission_mappings_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_permission_mappings.yml')) }
+
   describe '#share' do
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => { "message" => { "body" => "testing", "url" => nil, "message_type" => nil, "attachment_ids" => [], "group_id" => nil }}).
                  with(:headers => {'Accept' => 'application/json'}).
@@ -20,7 +31,7 @@ describe Socialcast::CLI do
 
     context 'with a message_type message' do
       before do
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
@@ -35,7 +46,7 @@ describe Socialcast::CLI do
     end
     context 'with a group_id param' do
       before do
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /group\_id\"\:123/).
                  with(:headers => {'Accept' => 'application/json'}).
@@ -49,7 +60,7 @@ describe Socialcast::CLI do
     end
     context "with a proxy" do
       before do
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials_with_proxy.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
@@ -66,14 +77,14 @@ describe Socialcast::CLI do
 
   describe '#sync_photos' do
     context "with no profile_photo mapping" do
-      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml') }
+      let(:config_file) { ldap_default_config_file }
       it "reports an error" do
         lambda { Socialcast::CLI.start ['sync_photos', '-c', config_file] }.should raise_error KeyError
       end
     end
 
     context "user does not have a profile photo" do
-      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_profile_photo.yml') }
+      let(:config_file) { ldap_with_profile_photo_config_file }
       let(:system_default_photo) { true }
       let(:photo_data) { "\x89PNGabc" }
       before do
@@ -82,7 +93,7 @@ describe Socialcast::CLI do
         @entry[:jpegPhoto] = photo_data
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         user_search_resource = double(:user_search_resource)
         search_api_response = {
           'users' => [
@@ -92,7 +103,7 @@ describe Socialcast::CLI do
                 'is_system_default' => system_default_photo
               }
             }
-          ] 
+          ]
         }
         user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
         Socialcast.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
@@ -111,7 +122,7 @@ describe Socialcast::CLI do
     end
 
     context "unknown image format" do
-      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_profile_photo.yml') }
+      let(:config_file) { ldap_with_profile_photo_config_file }
       let(:system_default_photo) { true }
       let(:photo_data) { "abc" }
       before do
@@ -120,7 +131,7 @@ describe Socialcast::CLI do
         @entry[:jpegPhoto] = photo_data
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         user_search_resource = double(:user_search_resource)
         search_api_response = {
           'users' => [
@@ -130,7 +141,7 @@ describe Socialcast::CLI do
                 'is_system_default' => system_default_photo
               }
             }
-          ] 
+          ]
         }
         user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
         Socialcast.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
@@ -145,7 +156,7 @@ describe Socialcast::CLI do
     end
 
     context "user already has a profile photo" do
-      let(:config_file) { File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_profile_photo.yml') }
+      let(:config_file) { ldap_with_profile_photo_config_file }
       let(:system_default_photo) { false }
       let(:photo_data) { "\x89PNGabc" }
       before do
@@ -154,7 +165,7 @@ describe Socialcast::CLI do
         @entry[:jpegPhoto] = "\x89PNGabc"
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
         user_search_resource = double(:user_search_resource)
         search_api_response = {
           'users' => [
@@ -164,7 +175,7 @@ describe Socialcast::CLI do
                 'is_system_default' => system_default_photo
               }
             }
-          ] 
+          ]
         }
         user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
         Socialcast.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
@@ -182,7 +193,7 @@ describe Socialcast::CLI do
   describe '#provision' do
     before do
       Socialcast::CLI.instance_eval do # to supress warning from stubbing ldap_config
-        @no_tasks = true
+        @no_tasks = @no_commands = true
       end
     end
     context 'with 0 users found in ldap' do
@@ -191,8 +202,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.should_not_receive(:post)
@@ -207,8 +218,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
 
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -224,8 +235,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
 
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         rest_client_resource = double(:rest_client_resource)
@@ -245,8 +256,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).with(hash_including('config' => '/my/path/to/ldap.yml')).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).with(hash_including('config' => '/my/path/to/ldap.yml')).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
 
@@ -262,8 +273,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
 
@@ -280,12 +291,12 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_plugin_mapping.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_plugin_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
 
-        Socialcast::CLI.start ['provision', '--plugins', [File.join(File.dirname(__FILE__), 'fixtures', 'fake_attribute_map')]]
+        Socialcast::CLI.start ['provision', '--plugins', [File.join(File.dirname(__FILE__), '..', 'fixtures', 'fake_attribute_map')]]
       end
       it 'successfully processes' do
         @result.should =~ %r{rybn@exbmple.com}
@@ -300,8 +311,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_without_permission_mappings.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -322,8 +333,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -344,8 +355,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_array_permission_mapping.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -367,8 +378,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -392,8 +403,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_array_permission_mapping.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -417,8 +428,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_array_permission_mapping.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -444,8 +455,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_interpolated_values.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_interpolated_values_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -470,8 +481,8 @@ describe Socialcast::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap_with_manager_attribute.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_manager_attribute_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
         RestClient::Resource.any_instance.stub(:post)
@@ -496,15 +507,15 @@ describe Socialcast::CLI do
         ldap_return = double("ldapreturn")
         ldap_return.should_receive(:search).with(include(:filter => Net::LDAP::Filter.construct("(&(mail=sean@example.com)(mail=*))"))).and_return(@valid_entry)
 
-        Socialcast::CLI.any_instance.should_receive(:create_ldap_instance).and_return(ldap_search_block, ldap_return)
+        Socialcast::Provision.any_instance.should_receive(:create_ldap_instance).and_return(ldap_search_block, ldap_return)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast.stub(:credentials).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'credentials.yml')))
-        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(YAML.load_file(File.join(File.dirname(__FILE__), 'fixtures', 'ldap.yml')))
+        Socialcast.stub(:credentials).and_return(credentials)
+        Socialcast::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        Socialcast::CLI.any_instance.should_receive(:create_socialcast_user_index_request).and_return(
+        Socialcast::Provision.any_instance.should_receive(:create_socialcast_user_index_request).and_return(
           double("request1", :get => {"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json),
           double("request2", :get => {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json),
           double("empty_request", :get => {"users" => []}.to_json)
