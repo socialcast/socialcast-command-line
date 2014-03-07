@@ -192,7 +192,7 @@ module Socialcast
       request_params = {:per_page => 500}
       request_params[:page] = 1
       resource = create_socialcast_user_index_request(http_config, request_params)
-      while true
+      loop do
         response = resource.get :accept => :json
         result = JSON.parse(response)
         users = result["users"]
