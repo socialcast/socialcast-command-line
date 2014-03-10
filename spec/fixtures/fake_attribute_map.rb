@@ -1,10 +1,10 @@
 module Socialcast
   class FakeAttributeMap
     def self.attributes
-      %w{mail}
+      %w{plugin_attr}
     end
     def self.run(entry)
-      return "#{entry[:mail].first.gsub(/a/,'b')}"
+      return "#{entry[:plugin_attr].first.gsub(/a/,'b')}"
     end
   end
 end
