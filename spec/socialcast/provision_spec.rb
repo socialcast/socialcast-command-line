@@ -11,6 +11,8 @@ describe Socialcast::Provision do
     let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
     let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
     let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
+    let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
+    let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
     let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
     let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
     let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
@@ -71,8 +73,6 @@ describe Socialcast::Provision do
           users = Array.wrap(expected_attribute_xml).inject('') do |users_str, user_xml|
             users_str << %Q[<user>
               #{user_xml}
-              <custom-fields type="array">
-              </custom-fields>
               <account-type>member</account-type>
               <roles type="array">
               </roles>
@@ -105,7 +105,9 @@ describe Socialcast::Provision do
               <last_name>last name</last_name>
               <contact-info>
                <email>user@example.com</email>
-              </contact-info>]
+              </contact-info>
+              <custom-fields type="array">
+              </custom-fields>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -120,7 +122,9 @@ describe Socialcast::Provision do
         let(:expected_attribute_xml) do
           %Q[<contact-info>
                <email>user@example.com</email>
-              </contact-info>]
+              </contact-info>
+              <custom-fields type="array">
+              </custom-fields>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -144,15 +148,76 @@ describe Socialcast::Provision do
         let(:expected_attribute_xml) do
           [%Q[<contact-info>
                <email>user@example.com</email>
-              </contact-info>],
+              </contact-info>
+              <custom-fields type="array">
+              </custom-fields>],
           %Q[<first_name>first name2</first_name>
               <contact-info>
                <email>user2@example.com</email>
-              </contact-info>]
+              </contact-info>
+              <custom-fields type="array">
+              </custom-fields>]
           ]
         end
         it_behaves_like "attributes are mapped properly"
       end
+
+      context "with custom attribute mappings" do
+        before do
+          entry = create_entry :mail => 'user@example.com', :custom_ldap1 => 'custom value 1', :custom_ldap2 => 'custom value 2'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::Provision.new(ldap_with_custom_attributes_config, {}).provision
+        end
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array">
+                <custom-field>
+                  <id>custom_attr1</id>
+                  <label>custom_attr1</label>
+                  <value>custom value 1</value>
+                </custom-field>
+                <custom-field>
+                  <id>custom_attr2</id>
+                  <label>custom_attr2</label>
+                  <value>custom value 2</value>
+                </custom-field>
+              </custom-fields>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
+      context "with manager" do
+        before do
+          provision_instance = Socialcast::Provision.new(ldap_with_manager_attribute_config, {})
+
+          ldap_instance = double
+          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
+
+          user_entry = create_entry :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
+          manager_entry = create_entry :mail => 'boss@example.com'
+          ldap_instance.should_receive(:search).once.ordered.with(hash_including(:attributes => ['mail', 'ldap_manager', 'isMemberOf'])).and_yield(user_entry)
+          ldap_instance.should_receive(:search).once.ordered.and_yield(manager_entry)
+
+          provision_instance.provision
+        end
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array">
+                <custom-field>
+                  <id>manager_email</id>
+                  <label>manager_email</label>
+                  <value>boss@example.com</value>
+                </custom-field>
+              </custom-fields>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
     end
     context "permission attribute mappings" do
       shared_examples "permission attributes are mapped properly" do
