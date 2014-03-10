@@ -8,7 +8,7 @@ describe Socialcast::Provision do
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
   let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
   let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
-  let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
+  let!(:ldap_with_class_ldap_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_class_ldap_attribute.yml')) }
   let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
   let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
   let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
@@ -213,6 +213,25 @@ describe Socialcast::Provision do
         it_behaves_like "attributes are mapped properly"
       end
 
+      context "with an ldap mapping that has the same name as a class" do
+        before do
+          module TestLdapAttributeMapping end
+          entry = create_entry :test_ldap_attribute_mapping => 'user@example.com'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::Provision.new(ldap_with_class_ldap_attribute_config, {}).provision
+        end
+        after do
+          Object.send(:remove_const, :TestLdapAttributeMapping)
+        end
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array"/>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
     end
     context "permission attribute mappings" do
       shared_examples "permission attributes are mapped properly" do

@@ -1,5 +1,4 @@
 require 'net/ldap'
-require File.join(File.dirname(__FILE__), 'net_ldap_ext')
 
 require 'zlib'
 require 'builder'
@@ -92,8 +91,8 @@ module Socialcast
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
       each_ldap_entry do |ldap, entry, attr_mappings|
-        email = entry.grab(attr_mappings['email'])
-        if profile_photo_data = entry.grab(attr_mappings['profile_photo'])
+        email = grab(entry, attr_mappings['email'])
+        if profile_photo_data = grab(entry, attr_mappings['profile_photo'])
           profile_photo_data = profile_photo_data.force_encoding('binary')
 
           user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
@@ -130,9 +129,9 @@ module Socialcast
     private
 
     def dereference_mail(entry, ldap_connection, dn_field, mail_attribute)
-      dn = entry.grab(dn_field)
+      dn = grab(entry, dn_field)
       ldap_connection.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
-        return manager_entry.grab(mail_attribute)
+        return grab(manager_entry, mail_attribute)
       end
     end
 
@@ -141,14 +140,14 @@ module Socialcast
       primary_attributes = %w{unique_identifier first_name last_name employee_number}
       primary_attributes.each do |attribute|
         next unless attr_mappings.has_key?(attribute)
-        user_hash[attribute] = entry.grab(attr_mappings[attribute])
+        user_hash[attribute] = grab(entry, attr_mappings[attribute])
       end
 
       contact_attributes = %w{email location cell_phone office_phone}
       user_hash['contact-info'] = {}
       contact_attributes.each do |attribute|
         next unless attr_mappings.has_key?(attribute)
-        user_hash['contact-info'][attribute] = entry.grab(attr_mappings[attribute])
+        user_hash['contact-info'][attribute] = grab(entry, attr_mappings[attribute])
       end
 
       custom_attributes = attr_mappings.keys - (primary_attributes + contact_attributes)
@@ -158,7 +157,7 @@ module Socialcast
         if attribute == 'manager'
           user_hash['custom-fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap_connection, attr_mappings[attribute], attr_mappings['email']) }
         else
-          user_hash['custom-fields'] << { 'id' => attribute, 'label' => attribute, 'value' => entry.grab(attr_mappings[attribute]) }
+          user_hash['custom-fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attr_mappings[attribute]) }
         end
       end
 
@@ -193,7 +192,7 @@ module Socialcast
         attr_mappings = attribute_mappings(ldap_connection_name)
         perm_mappings = permission_mappings(ldap_connection_name)
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(ldap_connection_name)) do |entry|
-          if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
+          if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
             yield ldap, entry, attr_mappings, perm_mappings
           end
 
@@ -227,11 +226,14 @@ module Socialcast
 
       membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
       attributes = attr_mappings.values.map do |mapping_value|
-        mapping_value = begin
-          mapping_value.camelize.constantize
-        rescue NameError
-          mapping_value
+        if @options[:plugins].present?
+          mapping_value = begin
+            mapping_value.camelize.constantize
+          rescue NameError
+            mapping_value
+          end
         end
+
         case mapping_value
         when Hash
           dup_mapping_value = mapping_value.dup
@@ -291,6 +293,30 @@ module Socialcast
       end
 
       @permission_mappings[connection_name]
+    end
+
+    # grab a *single* value of an attribute
+    # abstracts away ldap multivalue attributes
+    def grab(entry, attribute)
+      if @options[:plugins].present?
+        attribute = begin
+          attribute.camelize.constantize
+        rescue NameError
+          attribute
+        end
+      end
+
+      case attribute
+      when Hash
+        dup_attribute = attribute.dup
+        value = dup_attribute.delete("value")
+        value % Hash[dup_attribute.map {|k,v| [k, grab(entry, v)]}].symbolize_keys
+      when String
+        Array.wrap(entry[attribute]).compact.first
+      when Class, Module
+        return nil unless attribute.respond_to?(:run)
+        attribute.run(entry)
+      end
     end
   end
 end
