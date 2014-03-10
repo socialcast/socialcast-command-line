@@ -19,10 +19,15 @@ module Socialcast
       @options[:output] ||= DEFAULT_OUTPUT_FILE
     end
 
+    def each_user_hash
+      each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
+        yield build_user_hash_from_mappings(entry, ldap, attr_mappings, perm_mappings)
+      end
+    end
+
     def provision
       http_config = @ldap_config.fetch 'http', {}
 
-      user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
       output_file = File.join Dir.pwd, @options[:output]
 
@@ -31,11 +36,10 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
-              user_hash = build_user_hash_from_mappings(entry, ldap, attr_mappings, perm_mappings)
+            each_user_hash do |user_hash|
               users << user_hash.to_xml(:skip_instruct => true, :root => 'user', :dasherize => false)
-              user_whitelist << user_identifier_list.map { |identifier| entry.grab(attr_mappings[identifier]) }
-            end # connections
+              user_whitelist << [user_hash['contact-info']['email'], user_hash['unique_identifier'], user_hash['employee_number']]
+            end
           end # users
         end # export
       end # gzip
@@ -46,7 +50,7 @@ module Socialcast
           attr_mappings = attribute_mappings(ldap_connection_name)
           (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
             combined_filters = []
-            user_identifier_list.each_with_index do |identifier, index|
+            ['email', 'unique_identifier', 'employee_number'].each_with_index do |identifier, index|
               combined_filters << ((attr_mappings[identifier].blank? || user_identifiers[index].nil?) ? nil : Net::LDAP::Filter.eq(attr_mappings[identifier], user_identifiers[index]))
             end
             combined_filters.compact!
