@@ -1,21 +1,21 @@
 require 'spec_helper'
 
 describe Socialcast::Provision do
+  let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
+  let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
+  let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
+  let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
+  let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+  let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
+  let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
+  let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
+  let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
+  let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
+  let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
+  let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
+  let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
 
   describe ".provision" do
-    let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
-    let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
-    let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
-    let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
-    let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
-    let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
-    let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
-    let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
-    let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
-    let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
-    let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
-    let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
-    let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
     let(:result) { '' }
     def create_entry(entry_attributes)
       Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
@@ -74,8 +74,7 @@ describe Socialcast::Provision do
             users_str << %Q[<user>
               #{user_xml}
               <account-type>member</account-type>
-              <roles type="array">
-              </roles>
+              <roles type="array"/>
             </user>]
           end
           result.gsub(/\s/, '').should == %Q[
@@ -106,8 +105,7 @@ describe Socialcast::Provision do
               <contact-info>
                <email>user@example.com</email>
               </contact-info>
-              <custom-fields type="array">
-              </custom-fields>]
+              <custom-fields type="array"/>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -123,8 +121,7 @@ describe Socialcast::Provision do
           %Q[<contact-info>
                <email>user@example.com</email>
               </contact-info>
-              <custom-fields type="array">
-              </custom-fields>]
+              <custom-fields type="array"/>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -149,14 +146,12 @@ describe Socialcast::Provision do
           [%Q[<contact-info>
                <email>user@example.com</email>
               </contact-info>
-              <custom-fields type="array">
-              </custom-fields>],
+              <custom-fields type="array"/>],
           %Q[<first_name>first name2</first_name>
               <contact-info>
                <email>user2@example.com</email>
               </contact-info>
-              <custom-fields type="array">
-              </custom-fields>]
+              <custom-fields type="array"/>]
           ]
         end
         it_behaves_like "attributes are mapped properly"
@@ -229,8 +224,7 @@ describe Socialcast::Provision do
               <contact-info>
                <email>user@example.com</email>
               </contact-info>
-              <custom-fields type="array">
-              </custom-fields>
+              <custom-fields type="array"/>
               #{permission_xml}
             </user>]
           end
@@ -366,6 +360,24 @@ describe Socialcast::Provision do
               </roles>]]
         end
         it_behaves_like "permission attributes are mapped properly"
+      end
+    end
+  end
+
+  describe '#dereference_mail' do
+    context "called on directreport entry" do
+      let(:entry) do
+        Net::LDAP::Entry.new("cn=directreport,dc=example,dc=com").tap do |e|
+          e[:mail] = 'directreport@example.com'
+          e[:manager] = 'cn=bossman,dc=example,dc=com'
+        end
+      end
+      it "will return bossman email" do
+        @manager_entry = Net::LDAP::Entry.new("cn=bossman,dc=example,dc=com")
+        @manager_entry[:mail] = 'bossman@example.com'
+        ldap = double('net/ldap')
+        ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(@manager_entry)
+        Socialcast::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
       end
     end
   end

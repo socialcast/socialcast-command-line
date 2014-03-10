@@ -32,9 +32,8 @@ module Socialcast
         xml.export do |export|
           export.users(:type => "array") do |users|
             each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
-              users.user do |user|
-                entry.build_xml_from_mappings user, ldap, attr_mappings, perm_mappings
-              end
+              user_hash = build_user_hash_from_mappings(entry, ldap, attr_mappings, perm_mappings)
+              users << user_hash.to_xml(:skip_instruct => true, :root => 'user', :dasherize => false)
               user_whitelist << user_identifier_list.map { |identifier| entry.grab(attr_mappings[identifier]) }
             end # connections
           end # users
@@ -125,6 +124,63 @@ module Socialcast
     end
 
     private
+
+    def dereference_mail(entry, ldap_connection, dn_field, mail_attribute)
+      dn = entry.grab(dn_field)
+      ldap_connection.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
+        return manager_entry.grab(mail_attribute)
+      end
+    end
+
+    def build_user_hash_from_mappings(entry, ldap_connection, attr_mappings, perm_mappings)
+      user_hash = {}
+      primary_attributes = %w{unique_identifier first_name last_name employee_number}
+      primary_attributes.each do |attribute|
+        next unless attr_mappings.has_key?(attribute)
+        user_hash[attribute] = entry.grab(attr_mappings[attribute])
+      end
+
+      contact_attributes = %w{email location cell_phone office_phone}
+      user_hash['contact-info'] = {}
+      contact_attributes.each do |attribute|
+        next unless attr_mappings.has_key?(attribute)
+        user_hash['contact-info'][attribute] = entry.grab(attr_mappings[attribute])
+      end
+
+      custom_attributes = attr_mappings.keys - (primary_attributes + contact_attributes)
+
+      user_hash['custom-fields'] = []
+      custom_attributes.each do |attribute|
+        if attribute == 'manager'
+          user_hash['custom-fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap_connection, attr_mappings[attribute], attr_mappings['email']) }
+        else
+          user_hash['custom-fields'] << { 'id' => attribute, 'label' => attribute, 'value' => entry.grab(attr_mappings[attribute]) }
+        end
+      end
+
+      membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
+      memberships = entry[membership_attribute]
+      external_ldap_groups = Array.wrap(perm_mappings.fetch('account_types', {})['external'])
+      if external_ldap_groups.any? { |external_ldap_group| memberships.include?(external_ldap_group) }
+        user_hash['account-type'] = 'external'
+      else
+        user_hash['account-type'] = 'member'
+        if permission_roles_mappings = perm_mappings['roles']
+          user_hash['roles'] = []
+          permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
+            Array.wrap(ldap_groups).each do |ldap_group|
+              if memberships.include?(ldap_group)
+                user_hash['roles'] << socialcast_role
+                break
+              end
+            end
+          end
+        end
+      end
+
+      user_hash
+    end
+
 
     def each_ldap_entry(&block)
       count = 0

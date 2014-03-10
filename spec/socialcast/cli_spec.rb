@@ -476,7 +476,7 @@ describe Socialcast::CLI do
         @entry[:manager] = 'cn=bossman,dc=example,dc=com'
         @manager_email = 'bossman@example.com'
 
-        @entry.stub(:dereference_mail).with(kind_of(Net::LDAP), "ldap_manager", "mail").and_return(@manager_email)
+        Socialcast::Provision.any_instance.stub(:dereference_mail).with(kind_of(Net::LDAP::Entry), kind_of(Net::LDAP), "ldap_manager", "mail").and_return(@manager_email)
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
         @result = ''
