@@ -11,6 +11,7 @@ describe Socialcast::Provision do
   let!(:ldap_with_class_ldap_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_class_ldap_attribute.yml')) }
   let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
   let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
+  let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
   let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
@@ -397,6 +398,74 @@ describe Socialcast::Provision do
         ldap = double('net/ldap')
         ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(@manager_entry)
         Socialcast::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
+      end
+    end
+  end
+
+  describe "#grab" do
+    let(:provision_instance) { Socialcast::Provision.new(ldap_with_plugin_mapping_config, :plugins => 'socialcast/fake_attribute_map') }
+    let(:entry) do
+      Net::LDAP::Entry.new("cn=sean,dc=example,dc=com").tap do |e|
+        e[:mail] = 'sean@example.com'
+      end
+    end
+    context "passed hash for attribute" do
+      it "returns a string that used defined string template" do
+        provision_instance.send(:grab, entry, { "value" => "123%{mail}", "mail" => "mail" }).should == "123sean@example.com"
+      end
+    end
+    context "passed string for attribute" do
+      it "returns exact string stored in entry" do
+        provision_instance.send(:grab, entry, "mail").should == "sean@example.com"
+      end
+    end
+    context "passed string that can be constantized and the resulting Class responds to run" do
+      it "returns result of run method" do
+        module Socialcast
+          class FakeAttributeMap
+            def self.run(entry)
+              return "#{entry[:mail].first.gsub(/a/,'b')}"
+            end
+          end
+        end
+        provision_instance.send(:grab, entry, "Socialcast::FakeAttributeMap").should == "sebn@exbmple.com"
+      end
+    end
+    context "passed string that must be classified and the resulting Class responds to run" do
+      it "returns result of run method" do
+        module Socialcast
+          class FakeAttributeMap
+            def self.run(entry)
+              return "#{entry[:mail].first.gsub(/a/,'b')}"
+            end
+          end
+        end
+        provision_instance.send(:grab, entry, "socialcast/fake_attribute_map").should == "sebn@exbmple.com"
+      end
+    end
+    context "attribute passed has a collision between string and Class" do
+      before do
+        class Mail
+          def self.run(entry)
+            return "#{entry[:mail].first.gsub(/a/,'b')}"
+          end
+        end
+      end
+      after do
+        Object.send(:remove_const, :Mail)
+      end
+      it "returns the result of the Class run method" do
+        provision_instance.send(:grab, entry, "mail").should == "sebn@exbmple.com"
+      end
+    end
+    context "attribute passed constantizes to a module instead of a class" do
+      it "returns the result of the Module run method" do
+        module FakeAttributeMap
+          def self.run(entry)
+            return "#{entry[:mail].first.gsub(/a/,'b')}"
+          end
+        end
+        provision_instance.send(:grab, entry, "FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
   end
