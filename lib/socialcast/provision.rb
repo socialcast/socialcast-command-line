@@ -90,7 +90,7 @@ module Socialcast
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
-      each_ldap_entry do |ldap, entry, attr_mappings|
+      each_ldap_entry do |ldap, entry, attr_mappings, _|
         email = grab(entry, attr_mappings['email'])
         if profile_photo_data = grab(entry, attr_mappings['profile_photo'])
           profile_photo_data = profile_photo_data.force_encoding('binary')
