@@ -136,7 +136,7 @@ module Socialcast
     end
 
     def build_user_hash_from_mappings(entry, ldap_connection, attr_mappings, perm_mappings)
-      user_hash = {}
+      user_hash = HashWithIndifferentAccess.new
       primary_attributes = %w{unique_identifier first_name last_name employee_number}
       primary_attributes.each do |attribute|
         next unless attr_mappings.has_key?(attribute)
