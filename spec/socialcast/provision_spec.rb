@@ -421,7 +421,7 @@ describe Socialcast::Provision do
           'email' => 'user@example.com',
         },
         'custom_fields' => [],
-        'account-type' => 'member',
+        'account_type' => 'member',
         'roles' => []
       }))
     end

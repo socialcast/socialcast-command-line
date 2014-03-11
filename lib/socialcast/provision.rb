@@ -165,9 +165,9 @@ module Socialcast
       memberships = entry[membership_attribute]
       external_ldap_groups = Array.wrap(perm_mappings.fetch('account_types', {})['external'])
       if external_ldap_groups.any? { |external_ldap_group| memberships.include?(external_ldap_group) }
-        user_hash['account-type'] = 'external'
+        user_hash['account_type'] = 'external'
       else
-        user_hash['account-type'] = 'member'
+        user_hash['account_type'] = 'member'
         if permission_roles_mappings = perm_mappings['roles']
           user_hash['roles'] = []
           permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
