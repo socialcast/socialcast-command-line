@@ -101,8 +101,8 @@ describe Socialcast::Provision do
           Socialcast::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_attribute_xml) do
-          %Q[<first_name>first name</first_name>
-              <last_name>last name</last_name>
+          %Q[<first-name>first name</first-name>
+              <last-name>last name</last-name>
               <contact-info>
                <email>user@example.com</email>
               </contact-info>
@@ -148,7 +148,7 @@ describe Socialcast::Provision do
                <email>user@example.com</email>
               </contact-info>
               <custom-fields type="array"/>],
-          %Q[<first_name>first name2</first_name>
+          %Q[<first-name>first name2</first-name>
               <contact-info>
                <email>user2@example.com</email>
               </contact-info>
@@ -239,8 +239,8 @@ describe Socialcast::Provision do
         it do
           users = Array.wrap(expected_permission_xml).inject('') do |users_str, permission_xml|
             users_str << %Q[<user>
-              <first_name>first name</first_name>
-              <last_name>last name</last_name>
+              <first-name>first name</first-name>
+              <last-name>last name</last-name>
               <contact-info>
                <email>user@example.com</email>
               </contact-info>

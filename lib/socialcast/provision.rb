@@ -36,8 +36,8 @@ module Socialcast
         xml.export do |export|
           export.users(:type => "array") do |users|
             each_user_hash do |user_hash|
-              users << user_hash.to_xml(:skip_instruct => true, :root => 'user', :dasherize => false)
-              user_whitelist << [user_hash['contact-info']['email'], user_hash['unique_identifier'], user_hash['employee_number']]
+              users << user_hash.to_xml(:skip_instruct => true, :root => 'user')
+              user_whitelist << [user_hash['contact_info']['email'], user_hash['unique_identifier'], user_hash['employee_number']]
             end
           end # users
         end # export
@@ -144,20 +144,20 @@ module Socialcast
       end
 
       contact_attributes = %w{email location cell_phone office_phone}
-      user_hash['contact-info'] = {}
+      user_hash['contact_info'] = {}
       contact_attributes.each do |attribute|
         next unless attr_mappings.has_key?(attribute)
-        user_hash['contact-info'][attribute] = grab(entry, attr_mappings[attribute])
+        user_hash['contact_info'][attribute] = grab(entry, attr_mappings[attribute])
       end
 
       custom_attributes = attr_mappings.keys - (primary_attributes + contact_attributes)
 
-      user_hash['custom-fields'] = []
+      user_hash['custom_fields'] = []
       custom_attributes.each do |attribute|
         if attribute == 'manager'
-          user_hash['custom-fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap_connection, attr_mappings[attribute], attr_mappings['email']) }
+          user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap_connection, attr_mappings[attribute], attr_mappings['email']) }
         else
-          user_hash['custom-fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attr_mappings[attribute]) }
+          user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attr_mappings[attribute]) }
         end
       end
 
