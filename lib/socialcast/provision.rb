@@ -226,24 +226,25 @@ module Socialcast
 
       membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
       attributes = attr_mappings.values.map do |mapping_value|
-        if @options[:plugins].present?
-          mapping_value = begin
-            mapping_value.camelize.constantize
-          rescue NameError
-            mapping_value
-          end
+        value = begin
+          mapping_value.camelize.constantize
+        rescue NameError
+          mapping_value
         end
 
-        case mapping_value
+        case value
         when Hash
-          dup_mapping_value = mapping_value.dup
+          dup_mapping_value = value.dup
           dup_mapping_value.delete("value")
           dup_mapping_value.values
         when String
-          mapping_value
+          value
         when Class, Module
-          fail "Please add the attributes method to #{mapping_value}" unless mapping_value.respond_to?(:attributes)
-          mapping_value.attributes
+          if value.respond_to?(:attributes)
+            value.attributes
+          else
+            mapping_value
+          end
         end
       end.flatten
       attributes << membership_attribute
@@ -298,25 +299,30 @@ module Socialcast
     # grab a *single* value of an attribute
     # abstracts away ldap multivalue attributes
     def grab(entry, attribute)
-      if @options[:plugins].present?
-        attribute = begin
-          attribute.camelize.constantize
-        rescue NameError
-          attribute
-        end
+      const_attribute = begin
+        attribute.camelize.constantize
+      rescue NameError
+        attribute
       end
 
-      case attribute
+      case const_attribute
       when Hash
-        dup_attribute = attribute.dup
+        dup_attribute = const_attribute.dup
         value = dup_attribute.delete("value")
         value % Hash[dup_attribute.map {|k,v| [k, grab(entry, v)]}].symbolize_keys
       when String
-        Array.wrap(entry[attribute]).compact.first
+        normalize_ldap_value(entry, attribute)
       when Class, Module
-        return nil unless attribute.respond_to?(:run)
-        attribute.run(entry)
+        if const_attribute.respond_to?(:run)
+          const_attribute.run(entry)
+        else
+          normalize_ldap_value(entry, attribute)
+        end
       end
+    end
+
+    def normalize_ldap_value(entry, attribute)
+      Array.wrap(entry[attribute]).compact.first
     end
   end
 end
