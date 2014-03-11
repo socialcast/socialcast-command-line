@@ -20,7 +20,7 @@ module Socialcast
 
     def each_user_hash
       each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
-        yield build_user_hash_from_mappings(entry, ldap, attr_mappings, perm_mappings)
+        yield build_user_hash_from_mappings(ldap, entry, attr_mappings, perm_mappings)
       end
     end
 
@@ -135,7 +135,7 @@ module Socialcast
       end
     end
 
-    def build_user_hash_from_mappings(entry, ldap_connection, attr_mappings, perm_mappings)
+    def build_user_hash_from_mappings(ldap_connection, entry, attr_mappings, perm_mappings)
       user_hash = HashWithIndifferentAccess.new
       primary_attributes = %w{unique_identifier first_name last_name employee_number}
       primary_attributes.each do |attribute|
