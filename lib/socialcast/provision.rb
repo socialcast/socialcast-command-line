@@ -309,7 +309,7 @@ module Socialcast
       when Hash
         dup_attribute = const_attribute.dup
         value = dup_attribute.delete("value")
-        value % Hash[dup_attribute.map {|k,v| [k, grab(entry, v)]}].symbolize_keys
+        sprintf value, Hash[dup_attribute.map { |k, v| [k, grab(entry, v)] }].symbolize_keys
       when String
         normalize_ldap_value(entry, attribute)
       when Class, Module
