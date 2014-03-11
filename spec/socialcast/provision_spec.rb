@@ -16,7 +16,7 @@ describe Socialcast::Provision do
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
 
-  describe ".provision" do
+  describe "#provision" do
     let(:result) { '' }
     def create_entry(entry_attributes)
       Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
