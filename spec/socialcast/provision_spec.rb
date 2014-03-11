@@ -16,15 +16,16 @@ describe Socialcast::Provision do
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
 
-  describe "#provision" do
-    let(:result) { '' }
-    def create_entry(entry_attributes)
-      Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
-        entry_attributes.each_pair do |attr, value|
-          e[attr] = value
-        end
+  def create_entry(entry_attributes)
+    Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
+      entry_attributes.each_pair do |attr, value|
+        e[attr] = value
       end
     end
+  end
+
+  describe "#provision" do
+    let(:result) { '' }
 
     before do
       Zlib::GzipWriter.stub(:open).and_yield(result)
@@ -401,6 +402,28 @@ describe Socialcast::Provision do
       it "will return bossman email" do
         Socialcast::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
       end
+    end
+  end
+
+  describe "#each_user_hash" do
+    let(:provision_instance) { Socialcast::Provision.new(ldap_default_config, :plugins => 'socialcast/fake_attribute_map') }
+    before do
+      entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+    end
+    it do
+      expect do |blk|
+        provision_instance.each_user_hash(&blk)
+      end.to yield_with_args(HashWithIndifferentAccess.new({
+        'first_name' => 'first name',
+        'last_name' => 'last name',
+        'contact_info' => {
+          'email' => 'user@example.com',
+        },
+        'custom_fields' => [],
+        'account-type' => 'member',
+        'roles' => []
+      }))
     end
   end
 
