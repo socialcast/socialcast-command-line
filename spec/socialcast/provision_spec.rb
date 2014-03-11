@@ -392,11 +392,13 @@ describe Socialcast::Provision do
           e[:manager] = 'cn=bossman,dc=example,dc=com'
         end
       end
+      let(:ldap) { double('net/ldap') }
+      before do
+        manager_entry = Net::LDAP::Entry.new("cn=bossman,dc=example,dc=com")
+        manager_entry[:mail] = 'bossman@example.com'
+        ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(manager_entry)
+      end
       it "will return bossman email" do
-        @manager_entry = Net::LDAP::Entry.new("cn=bossman,dc=example,dc=com")
-        @manager_entry[:mail] = 'bossman@example.com'
-        ldap = double('net/ldap')
-        ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(@manager_entry)
         Socialcast::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
       end
     end
