@@ -1,5 +1,4 @@
 require 'net/ldap'
-require File.join(File.dirname(__FILE__), 'net_ldap_ext')
 
 require 'zlib'
 require 'builder'
@@ -19,10 +18,15 @@ module Socialcast
       @options[:output] ||= DEFAULT_OUTPUT_FILE
     end
 
+    def each_user_hash
+      each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
+        yield build_user_hash_from_mappings(ldap, entry, attr_mappings, perm_mappings)
+      end
+    end
+
     def provision
       http_config = @ldap_config.fetch 'http', {}
 
-      user_identifier_list = %w{email unique_identifier employee_number}
       user_whitelist = Set.new
       output_file = File.join Dir.pwd, @options[:output]
 
@@ -31,12 +35,10 @@ module Socialcast
         xml.instruct!
         xml.export do |export|
           export.users(:type => "array") do |users|
-            each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
-              users.user do |user|
-                entry.build_xml_from_mappings user, ldap, attr_mappings, perm_mappings
-              end
-              user_whitelist << user_identifier_list.map { |identifier| entry.grab(attr_mappings[identifier]) }
-            end # connections
+            each_user_hash do |user_hash|
+              users << user_hash.to_xml(:skip_instruct => true, :root => 'user')
+              user_whitelist << [user_hash['contact_info']['email'], user_hash['unique_identifier'], user_hash['employee_number']]
+            end
           end # users
         end # export
       end # gzip
@@ -47,7 +49,7 @@ module Socialcast
           attr_mappings = attribute_mappings(ldap_connection_name)
           (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
             combined_filters = []
-            user_identifier_list.each_with_index do |identifier, index|
+            ['email', 'unique_identifier', 'employee_number'].each_with_index do |identifier, index|
               combined_filters << ((attr_mappings[identifier].blank? || user_identifiers[index].nil?) ? nil : Net::LDAP::Filter.eq(attr_mappings[identifier], user_identifiers[index]))
             end
             combined_filters.compact!
@@ -88,9 +90,9 @@ module Socialcast
 
       search_users_resource = Socialcast.resource_for_path '/api/users/search', http_config
 
-      each_ldap_entry do |ldap, entry, attr_mappings|
-        email = entry.grab(attr_mappings['email'])
-        if profile_photo_data = entry.grab(attr_mappings['profile_photo'])
+      each_ldap_entry do |ldap, entry, attr_mappings, _|
+        email = grab(entry, attr_mappings['email'])
+        if profile_photo_data = grab(entry, attr_mappings['profile_photo'])
           profile_photo_data = profile_photo_data.force_encoding('binary')
 
           user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
@@ -126,6 +128,63 @@ module Socialcast
 
     private
 
+    def dereference_mail(entry, ldap_connection, dn_field, mail_attribute)
+      dn = grab(entry, dn_field)
+      ldap_connection.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
+        return grab(manager_entry, mail_attribute)
+      end
+    end
+
+    def build_user_hash_from_mappings(ldap_connection, entry, attr_mappings, perm_mappings)
+      user_hash = HashWithIndifferentAccess.new
+      primary_attributes = %w{unique_identifier first_name last_name employee_number}
+      primary_attributes.each do |attribute|
+        next unless attr_mappings.has_key?(attribute)
+        user_hash[attribute] = grab(entry, attr_mappings[attribute])
+      end
+
+      contact_attributes = %w{email location cell_phone office_phone}
+      user_hash['contact_info'] = {}
+      contact_attributes.each do |attribute|
+        next unless attr_mappings.has_key?(attribute)
+        user_hash['contact_info'][attribute] = grab(entry, attr_mappings[attribute])
+      end
+
+      custom_attributes = attr_mappings.keys - (primary_attributes + contact_attributes)
+
+      user_hash['custom_fields'] = []
+      custom_attributes.each do |attribute|
+        if attribute == 'manager'
+          user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap_connection, attr_mappings[attribute], attr_mappings['email']) }
+        else
+          user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attr_mappings[attribute]) }
+        end
+      end
+
+      membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
+      memberships = entry[membership_attribute]
+      external_ldap_groups = Array.wrap(perm_mappings.fetch('account_types', {})['external'])
+      if external_ldap_groups.any? { |external_ldap_group| memberships.include?(external_ldap_group) }
+        user_hash['account_type'] = 'external'
+      else
+        user_hash['account_type'] = 'member'
+        if permission_roles_mappings = perm_mappings['roles']
+          user_hash['roles'] = []
+          permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
+            Array.wrap(ldap_groups).each do |ldap_group|
+              if memberships.include?(ldap_group)
+                user_hash['roles'] << socialcast_role
+                break
+              end
+            end
+          end
+        end
+      end
+
+      user_hash
+    end
+
+
     def each_ldap_entry(&block)
       count = 0
 
@@ -133,7 +192,7 @@ module Socialcast
         attr_mappings = attribute_mappings(ldap_connection_name)
         perm_mappings = permission_mappings(ldap_connection_name)
         ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(ldap_connection_name)) do |entry|
-          if entry.grab(attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && entry.grab(attr_mappings["unique_identifier"]).present?)
+          if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
             yield ldap, entry, attr_mappings, perm_mappings
           end
 
@@ -167,21 +226,25 @@ module Socialcast
 
       membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
       attributes = attr_mappings.values.map do |mapping_value|
-        mapping_value = begin
+        value = begin
           mapping_value.camelize.constantize
         rescue NameError
           mapping_value
         end
-        case mapping_value
+
+        case value
         when Hash
-          dup_mapping_value = mapping_value.dup
+          dup_mapping_value = value.dup
           dup_mapping_value.delete("value")
           dup_mapping_value.values
         when String
-          mapping_value
+          value
         when Class, Module
-          fail "Please add the attributes method to #{mapping_value}" unless mapping_value.respond_to?(:attributes)
-          mapping_value.attributes
+          if value.respond_to?(:attributes)
+            value.attributes
+          else
+            mapping_value
+          end
         end
       end.flatten
       attributes << membership_attribute
@@ -231,6 +294,35 @@ module Socialcast
       end
 
       @permission_mappings[connection_name]
+    end
+
+    # grab a *single* value of an attribute
+    # abstracts away ldap multivalue attributes
+    def grab(entry, attribute)
+      const_attribute = begin
+        attribute.camelize.constantize
+      rescue NameError
+        attribute
+      end
+
+      case const_attribute
+      when Hash
+        dup_attribute = const_attribute.dup
+        value = dup_attribute.delete("value")
+        sprintf value, Hash[dup_attribute.map { |k, v| [k, grab(entry, v)] }].symbolize_keys
+      when String
+        normalize_ldap_value(entry, attribute)
+      when Class, Module
+        if const_attribute.respond_to?(:run)
+          const_attribute.run(entry)
+        else
+          normalize_ldap_value(entry, attribute)
+        end
+      end
+    end
+
+    def normalize_ldap_value(entry, attribute)
+      Array.wrap(entry[attribute]).compact.first
     end
   end
 end

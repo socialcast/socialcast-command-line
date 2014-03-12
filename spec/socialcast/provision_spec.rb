@@ -1,27 +1,31 @@
 require 'spec_helper'
 
 describe Socialcast::Provision do
+  let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
+  let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
+  let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
+  let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
+  let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+  let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
+  let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
+  let!(:ldap_with_class_ldap_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_class_ldap_attribute.yml')) }
+  let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
+  let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
+  let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
+  let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
+  let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
+  let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
 
-  describe ".provision" do
-    let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
-    let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
-    let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
-    let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
-    let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
-    let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
-    let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
-    let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
-    let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
-    let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
-    let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
-    let(:result) { '' }
-    def create_entry(entry_attributes)
-      Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
-        entry_attributes.each_pair do |attr, value|
-          e[attr] = value
-        end
+  def create_entry(entry_attributes)
+    Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
+      entry_attributes.each_pair do |attr, value|
+        e[attr] = value
       end
     end
+  end
+
+  describe "#provision" do
+    let(:result) { '' }
 
     before do
       Zlib::GzipWriter.stub(:open).and_yield(result)
@@ -71,11 +75,8 @@ describe Socialcast::Provision do
           users = Array.wrap(expected_attribute_xml).inject('') do |users_str, user_xml|
             users_str << %Q[<user>
               #{user_xml}
-              <custom-fields type="array">
-              </custom-fields>
               <account-type>member</account-type>
-              <roles type="array">
-              </roles>
+              <roles type="array"/>
             </user>]
           end
           result.gsub(/\s/, '').should == %Q[
@@ -101,11 +102,12 @@ describe Socialcast::Provision do
           Socialcast::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_attribute_xml) do
-          %Q[<first_name>first name</first_name>
-              <last_name>last name</last_name>
+          %Q[<first-name>first name</first-name>
+              <last-name>last name</last-name>
               <contact-info>
                <email>user@example.com</email>
-              </contact-info>]
+              </contact-info>
+              <custom-fields type="array"/>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -120,7 +122,8 @@ describe Socialcast::Provision do
         let(:expected_attribute_xml) do
           %Q[<contact-info>
                <email>user@example.com</email>
-              </contact-info>]
+              </contact-info>
+              <custom-fields type="array"/>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -144,12 +147,90 @@ describe Socialcast::Provision do
         let(:expected_attribute_xml) do
           [%Q[<contact-info>
                <email>user@example.com</email>
-              </contact-info>],
-          %Q[<first_name>first name2</first_name>
+              </contact-info>
+              <custom-fields type="array"/>],
+          %Q[<first-name>first name2</first-name>
               <contact-info>
                <email>user2@example.com</email>
-              </contact-info>]
+              </contact-info>
+              <custom-fields type="array"/>]
           ]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
+      context "with custom attribute mappings" do
+        before do
+          entry = create_entry :mail => 'user@example.com', :custom_ldap1 => 'custom value 1', :custom_ldap2 => 'custom value 2'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::Provision.new(ldap_with_custom_attributes_config, {}).provision
+        end
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array">
+                <custom-field>
+                  <id>custom_attr1</id>
+                  <label>custom_attr1</label>
+                  <value>custom value 1</value>
+                </custom-field>
+                <custom-field>
+                  <id>custom_attr2</id>
+                  <label>custom_attr2</label>
+                  <value>custom value 2</value>
+                </custom-field>
+              </custom-fields>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
+      context "with manager" do
+        before do
+          provision_instance = Socialcast::Provision.new(ldap_with_manager_attribute_config, {})
+
+          ldap_instance = double
+          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
+
+          user_entry = create_entry :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
+          manager_entry = create_entry :mail => 'boss@example.com'
+          ldap_instance.should_receive(:search).once.ordered.with(hash_including(:attributes => ['mail', 'ldap_manager', 'isMemberOf'])).and_yield(user_entry)
+          ldap_instance.should_receive(:search).once.ordered.and_yield(manager_entry)
+
+          provision_instance.provision
+        end
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array">
+                <custom-field>
+                  <id>manager_email</id>
+                  <label>manager_email</label>
+                  <value>boss@example.com</value>
+                </custom-field>
+              </custom-fields>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
+      context "with an ldap mapping that has the same name as a class" do
+        before do
+          module TestLdapAttributeMapping end
+          entry = create_entry :test_ldap_attribute_mapping => 'user@example.com'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::Provision.new(ldap_with_class_ldap_attribute_config, {}).provision
+        end
+        after do
+          Object.send(:remove_const, :TestLdapAttributeMapping)
+        end
+        let(:expected_attribute_xml) do
+          %Q[<contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array"/>]
         end
         it_behaves_like "attributes are mapped properly"
       end
@@ -159,13 +240,12 @@ describe Socialcast::Provision do
         it do
           users = Array.wrap(expected_permission_xml).inject('') do |users_str, permission_xml|
             users_str << %Q[<user>
-              <first_name>first name</first_name>
-              <last_name>last name</last_name>
+              <first-name>first name</first-name>
+              <last-name>last name</last-name>
               <contact-info>
                <email>user@example.com</email>
               </contact-info>
-              <custom-fields type="array">
-              </custom-fields>
+              <custom-fields type="array"/>
               #{permission_xml}
             </user>]
           end
@@ -301,6 +381,116 @@ describe Socialcast::Provision do
               </roles>]]
         end
         it_behaves_like "permission attributes are mapped properly"
+      end
+    end
+  end
+
+  describe '#dereference_mail' do
+    context "called on directreport entry" do
+      let(:entry) do
+        Net::LDAP::Entry.new("cn=directreport,dc=example,dc=com").tap do |e|
+          e[:mail] = 'directreport@example.com'
+          e[:manager] = 'cn=bossman,dc=example,dc=com'
+        end
+      end
+      let(:ldap) { double('net/ldap') }
+      before do
+        manager_entry = Net::LDAP::Entry.new("cn=bossman,dc=example,dc=com")
+        manager_entry[:mail] = 'bossman@example.com'
+        ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(manager_entry)
+      end
+      it "will return bossman email" do
+        Socialcast::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
+      end
+    end
+  end
+
+  describe "#each_user_hash" do
+    let(:provision_instance) { Socialcast::Provision.new(ldap_default_config, :plugins => 'socialcast/fake_attribute_map') }
+    before do
+      entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+    end
+    it do
+      expect do |blk|
+        provision_instance.each_user_hash(&blk)
+      end.to yield_with_args(HashWithIndifferentAccess.new({
+        'first_name' => 'first name',
+        'last_name' => 'last name',
+        'contact_info' => {
+          'email' => 'user@example.com',
+        },
+        'custom_fields' => [],
+        'account_type' => 'member',
+        'roles' => []
+      }))
+    end
+  end
+
+  describe "#grab" do
+    let(:provision_instance) { Socialcast::Provision.new(ldap_with_plugin_mapping_config, :plugins => 'socialcast/fake_attribute_map') }
+    let(:entry) do
+      Net::LDAP::Entry.new("cn=sean,dc=example,dc=com").tap do |e|
+        e[:mail] = 'sean@example.com'
+      end
+    end
+    context "passed hash for attribute" do
+      it "returns a string that used defined string template" do
+        provision_instance.send(:grab, entry, { "value" => "123%{mail}", "mail" => "mail" }).should == "123sean@example.com"
+      end
+    end
+    context "passed string for attribute" do
+      it "returns exact string stored in entry" do
+        provision_instance.send(:grab, entry, "mail").should == "sean@example.com"
+      end
+    end
+    context "passed string that can be constantized and the resulting Class responds to run" do
+      it "returns result of run method" do
+        module Socialcast
+          class FakeAttributeMap
+            def self.run(entry)
+              return "#{entry[:mail].first.gsub(/a/,'b')}"
+            end
+          end
+        end
+        provision_instance.send(:grab, entry, "Socialcast::FakeAttributeMap").should == "sebn@exbmple.com"
+      end
+    end
+    context "passed string that must be classified and the resulting Class responds to run" do
+      it "returns result of run method" do
+        module Socialcast
+          class FakeAttributeMap
+            def self.run(entry)
+              return "#{entry[:mail].first.gsub(/a/,'b')}"
+            end
+          end
+        end
+        provision_instance.send(:grab, entry, "socialcast/fake_attribute_map").should == "sebn@exbmple.com"
+      end
+    end
+    context "attribute passed has a collision between string and Class" do
+      before do
+        class Mail
+          def self.run(entry)
+            return "#{entry[:mail].first.gsub(/a/,'b')}"
+          end
+        end
+      end
+      after do
+        Object.send(:remove_const, :Mail)
+      end
+      it "returns the result of the Class run method" do
+        provision_instance.send(:grab, entry, "mail").should == "sebn@exbmple.com"
+      end
+    end
+    context "attribute passed constantizes to a module instead of a class" do
+      it "returns the result of the Module run method" do
+        module FakeAttributeMap
+          def self.run(entry)
+            return "#{entry[:mail].first.gsub(/a/,'b')}"
+          end
+        end
+        provision_instance.send(:grab, entry, "FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
   end

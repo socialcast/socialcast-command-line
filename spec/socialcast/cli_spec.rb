@@ -287,7 +287,8 @@ describe Socialcast::CLI do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        @entry[:plugin_attr] = 'some value'
+        Net::LDAP.any_instance.should_receive(:search).with(hash_including(:attributes => ['plugin_attr', 'sn', 'mail', 'memberof'])).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -299,7 +300,7 @@ describe Socialcast::CLI do
         Socialcast::CLI.start ['provision', '--plugins', [File.join(File.dirname(__FILE__), '..', 'fixtures', 'fake_attribute_map')]]
       end
       it 'successfully processes' do
-        @result.should =~ %r{rybn@exbmple.com}
+        @result.should =~ %r{some vblue}
       end # see expectations
     end
     context 'with ldap.yml configuration excluding permission_mappings' do
@@ -476,7 +477,7 @@ describe Socialcast::CLI do
         @entry[:manager] = 'cn=bossman,dc=example,dc=com'
         @manager_email = 'bossman@example.com'
 
-        @entry.stub(:dereference_mail).with(kind_of(Net::LDAP), "manager", "mail").and_return(@manager_email)
+        Socialcast::Provision.any_instance.stub(:dereference_mail).with(kind_of(Net::LDAP::Entry), kind_of(Net::LDAP), "ldap_manager", "mail").and_return(@manager_email)
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
         @result = ''
