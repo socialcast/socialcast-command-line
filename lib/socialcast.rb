@@ -1,7 +1,7 @@
 require 'yaml'
 require 'fileutils'
-require File.join(File.dirname(__FILE__), '..', 'ext', 'array_ext') unless Array.respond_to?(:wrap)
-require File.join(File.dirname(__FILE__), '..', 'ext', 'string_ext')
+require File.join(File.dirname(__FILE__), 'ext', 'array_ext') unless Array.respond_to?(:wrap)
+require File.join(File.dirname(__FILE__), 'ext', 'string_ext')
 
 module Socialcast
   module CommandLine

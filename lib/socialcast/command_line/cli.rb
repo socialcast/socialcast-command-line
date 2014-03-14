@@ -6,7 +6,7 @@ require "thor"
 require 'json'
 require 'rest_client'
 require 'highline'
-require 'socialcast/command_line'
+require 'socialcast'
 require 'socialcast/command_line/message'
 require 'socialcast/command_line/provision'
 
