@@ -12,7 +12,7 @@ connections:
 
 # LDAP attribute mappings
 mappings:
-  first_name: socialcast/fake_attribute_map
+  first_name: socialcast/command_line/fake_attribute_map
   last_name: sn
   email: mail
   # only use employee_number if the email is unknown
