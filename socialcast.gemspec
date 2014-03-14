@@ -11,6 +11,7 @@ Gem::Specification.new do |s|
   s.homepage    = "http://github.com/socialcast/socialcast-command-line"
   s.summary     = %q{command line interface to socialcast api}
   s.description = %q{publish messages to your stream from a command line interface}
+  s.license     = 'MIT'
 
   s.rubyforge_project = "socialcast"
 
