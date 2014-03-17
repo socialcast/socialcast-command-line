@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "socialcast/version"
+require "socialcast/command_line/version"
 
 Gem::Specification.new do |s|
   s.name        = "socialcast"
-  s.version     = Socialcast::VERSION
+  s.version     = Socialcast::CommandLine::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Ryan Sonnek","Sean Cashin","Lars Klevan"]
   s.email       = ["sean@socialcast.com"]

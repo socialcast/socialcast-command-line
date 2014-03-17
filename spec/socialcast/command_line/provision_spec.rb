@@ -1,20 +1,20 @@
 require 'spec_helper'
 
-describe Socialcast::Provision do
-  let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'credentials.yml')) }
-  let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap.yml')) }
-  let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
-  let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
-  let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
-  let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
-  let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
-  let!(:ldap_with_class_ldap_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_class_ldap_attribute.yml')) }
-  let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
-  let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
-  let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
-  let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
-  let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
-  let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
+describe Socialcast::CommandLine::Provision do
+  let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.yml')) }
+  let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap.yml')) }
+  let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
+  let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
+  let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+  let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
+  let!(:ldap_with_account_type_without_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_account_type_without_roles.yml')) }
+  let!(:ldap_with_class_ldap_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_class_ldap_attribute.yml')) }
+  let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
+  let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
+  let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
+  let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
+  let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
+  let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
 
   def create_entry(entry_attributes)
     Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
@@ -29,7 +29,7 @@ describe Socialcast::Provision do
 
     before do
       Zlib::GzipWriter.stub(:open).and_yield(result)
-      Socialcast.stub(:credentials).and_return(credentials)
+      Socialcast::CommandLine.stub(:credentials).and_return(credentials)
       File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
     end
 
@@ -39,7 +39,7 @@ describe Socialcast::Provision do
         Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
         RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
-        Socialcast::Provision.new(ldap_default_config, {}).provision
+        Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
       end
       it "puts the user in the output file" do
         result.should =~ /user@example.com/
@@ -51,7 +51,7 @@ describe Socialcast::Provision do
         Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
         RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
-        Socialcast::Provision.new(ldap_with_unique_identifier_config, {}).provision
+        Socialcast::CommandLine::Provision.new(ldap_with_unique_identifier_config, {}).provision
       end
       it "puts the user in the output file" do
         result.should =~ /userID/
@@ -65,8 +65,8 @@ describe Socialcast::Provision do
       end
       it "does not put the user in the output file" do
         expect do
-          Socialcast::Provision.new(ldap_default_config, {}).provision
-        end.to raise_error(Socialcast::Provision::ProvisionError, "Skipping upload to Socialcast since no users were found")
+          Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
+        end.to raise_error(Socialcast::CommandLine::Provision::ProvisionError, "Skipping upload to Socialcast since no users were found")
       end
     end
     context "attribute mappings" do
@@ -99,7 +99,7 @@ describe Socialcast::Provision do
           entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
 
-          Socialcast::Provision.new(ldap_default_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_attribute_xml) do
           %Q[<first-name>first name</first-name>
@@ -117,7 +117,7 @@ describe Socialcast::Provision do
           entry = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry)
 
-          Socialcast::Provision.new(ldap_connection_mapping_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_connection_mapping_config, {}).provision
         end
         let(:expected_attribute_xml) do
           %Q[<contact-info>
@@ -130,7 +130,7 @@ describe Socialcast::Provision do
 
       context "with mappings at the connection level for multiple connections" do
         before do
-          provision_instance = Socialcast::Provision.new(ldap_multiple_connection_mapping_config, {})
+          provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {})
 
           ldap_instance1 = double
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
@@ -164,7 +164,7 @@ describe Socialcast::Provision do
           entry = create_entry :mail => 'user@example.com', :custom_ldap1 => 'custom value 1', :custom_ldap2 => 'custom value 2'
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
 
-          Socialcast::Provision.new(ldap_with_custom_attributes_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_with_custom_attributes_config, {}).provision
         end
         let(:expected_attribute_xml) do
           %Q[<contact-info>
@@ -188,7 +188,7 @@ describe Socialcast::Provision do
 
       context "with manager" do
         before do
-          provision_instance = Socialcast::Provision.new(ldap_with_manager_attribute_config, {})
+          provision_instance = Socialcast::CommandLine::Provision.new(ldap_with_manager_attribute_config, {})
 
           ldap_instance = double
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
@@ -221,7 +221,7 @@ describe Socialcast::Provision do
           entry = create_entry :test_ldap_attribute_mapping => 'user@example.com'
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
 
-          Socialcast::Provision.new(ldap_with_class_ldap_attribute_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_with_class_ldap_attribute_config, {}).provision
         end
         after do
           Object.send(:remove_const, :TestLdapAttributeMapping)
@@ -271,7 +271,7 @@ describe Socialcast::Provision do
         let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::Provision.new(ldap_default_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_permission_xml) do
           %Q[<account-type>external</account-type>]
@@ -283,7 +283,7 @@ describe Socialcast::Provision do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::Provision.new(ldap_default_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_permission_xml) do
           %Q[<account-type>member</account-type>
@@ -299,7 +299,7 @@ describe Socialcast::Provision do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::Provision.new(ldap_with_account_type_without_roles_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_with_account_type_without_roles_config, {}).provision
         end
         let(:expected_permission_xml) do
           %Q[<account-type>member</account-type>]
@@ -311,7 +311,7 @@ describe Socialcast::Provision do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::Provision.new(ldap_with_roles_without_account_type_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_with_roles_without_account_type_config, {}).provision
         end
         let(:expected_permission_xml) do
           %Q[<account-type>member</account-type>
@@ -327,7 +327,7 @@ describe Socialcast::Provision do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::Provision.new(ldap_without_account_type_or_roles_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_without_account_type_or_roles_config, {}).provision
         end
         let(:expected_permission_xml) do
           %Q[<account-type>member</account-type>]
@@ -341,7 +341,7 @@ describe Socialcast::Provision do
         let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ldap_groups }
         before do
           Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::Provision.new(ldap_connection_permission_mapping_config, {}).provision
+          Socialcast::CommandLine::Provision.new(ldap_connection_permission_mapping_config, {}).provision
         end
         let(:expected_permission_xml) do
           %Q[<account-type>member</account-type>
@@ -356,7 +356,7 @@ describe Socialcast::Provision do
         let(:ldap_group_attribute) { 'memberOf' }
         let(:ldap_groups) {  }
         before do
-          provision_instance = Socialcast::Provision.new(ldap_multiple_connection_permission_mapping_config, {})
+          provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_permission_mapping_config, {})
 
           ldap_instance1 = double
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
@@ -400,13 +400,13 @@ describe Socialcast::Provision do
         ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(manager_entry)
       end
       it "will return bossman email" do
-        Socialcast::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
+        Socialcast::CommandLine::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
       end
     end
   end
 
   describe "#each_user_hash" do
-    let(:provision_instance) { Socialcast::Provision.new(ldap_default_config, :plugins => 'socialcast/fake_attribute_map') }
+    let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_default_config, :plugins => 'socialcast/command_line/fake_attribute_map') }
     before do
       entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
       Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
@@ -428,7 +428,7 @@ describe Socialcast::Provision do
   end
 
   describe "#grab" do
-    let(:provision_instance) { Socialcast::Provision.new(ldap_with_plugin_mapping_config, :plugins => 'socialcast/fake_attribute_map') }
+    let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_with_plugin_mapping_config, :plugins => 'socialcast/command_line/fake_attribute_map') }
     let(:entry) do
       Net::LDAP::Entry.new("cn=sean,dc=example,dc=com").tap do |e|
         e[:mail] = 'sean@example.com'
@@ -446,26 +446,26 @@ describe Socialcast::Provision do
     end
     context "passed string that can be constantized and the resulting Class responds to run" do
       it "returns result of run method" do
-        module Socialcast
+        module Socialcast::CommandLine
           class FakeAttributeMap
             def self.run(entry)
               return "#{entry[:mail].first.gsub(/a/,'b')}"
             end
           end
         end
-        provision_instance.send(:grab, entry, "Socialcast::FakeAttributeMap").should == "sebn@exbmple.com"
+        provision_instance.send(:grab, entry, "Socialcast::CommandLine::FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
     context "passed string that must be classified and the resulting Class responds to run" do
       it "returns result of run method" do
-        module Socialcast
+        module Socialcast::CommandLine
           class FakeAttributeMap
             def self.run(entry)
               return "#{entry[:mail].first.gsub(/a/,'b')}"
             end
           end
         end
-        provision_instance.send(:grab, entry, "socialcast/fake_attribute_map").should == "sebn@exbmple.com"
+        provision_instance.send(:grab, entry, "socialcast/command_line/fake_attribute_map").should == "sebn@exbmple.com"
       end
     end
     context "attribute passed has a collision between string and Class" do
