@@ -3,6 +3,7 @@ require 'spec_helper'
 describe Socialcast::CommandLine::Provision do
   let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.yml')) }
   let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap.yml')) }
+  let!(:ldap_blank_basedn_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_blank_basedn.yml')) }
   let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
   let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
@@ -132,12 +133,12 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {})
 
-          ldap_instance1 = double
+          ldap_instance1 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
 
-          ldap_instance2 = double
+          ldap_instance2 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
@@ -190,7 +191,7 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_with_manager_attribute_config, {})
 
-          ldap_instance = double
+          ldap_instance = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
 
           user_entry = create_entry :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
@@ -358,12 +359,12 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_permission_mapping_config, {})
 
-          ldap_instance1 = double
+          ldap_instance1 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry1)
 
-          ldap_instance2 = double
+          ldap_instance2 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :member => ["cn=Contractors,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'member'])).and_yield(entry2)
@@ -381,6 +382,28 @@ describe Socialcast::CommandLine::Provision do
               </roles>]]
         end
         it_behaves_like "permission attributes are mapped properly"
+      end
+    end
+
+    context "with no basedn configured" do
+      before do
+        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+
+        provision_instance = Socialcast::CommandLine::Provision.new(ldap_blank_basedn_config, {})
+
+        root_entry = create_entry(:namingcontexts => ['dc=foo,dc=com', 'dc=bar,dc=com'])
+        ldap_instance = double(Net::LDAP)
+        ldap_instance.should_receive(:search_root_dse).once.and_return(root_entry)
+        provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
+
+        user_entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
+        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(user_entry)
+
+        provision_instance.provision
+      end
+      it "searches all basedns and puts the user in the output file" do
+        result.should =~ /user@example.com/
       end
     end
   end

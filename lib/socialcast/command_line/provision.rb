@@ -136,6 +136,21 @@ module Socialcast
         end
       end
 
+      def search(ldap, search_options)
+        options_for_search = if search_options[:base].present?
+                               Array.wrap(search_options)
+                             else
+                               distinguished_names = Array.wrap(ldap.search_root_dse.namingcontexts)
+                               options_for_search = distinguished_names.map { |dn| search_options.merge(:base => dn ) }
+                             end
+
+        options_for_search.each do |options|
+          ldap.search(options) do |entry|
+            yield(entry)
+          end
+        end
+      end
+
       def build_user_hash_from_mappings(ldap, entry, attr_mappings, perm_mappings)
         user_hash = HashWithIndifferentAccess.new
         primary_attributes = %w{unique_identifier first_name last_name employee_number}
@@ -191,7 +206,7 @@ module Socialcast
         each_ldap_connection do |connection_name, connection_config, ldap|
           attr_mappings = attribute_mappings(connection_name)
           perm_mappings = permission_mappings(connection_name)
-          ldap.search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
+          search(ldap, :return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
             if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
               yield ldap, entry, attr_mappings, perm_mappings
             end
