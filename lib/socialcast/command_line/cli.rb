@@ -33,7 +33,11 @@ module Socialcast
       include Thor::Actions
 
       method_option :trace, :type => :boolean, :aliases => '-v'
-      def initialize(*args); super(*args) end
+      method_option :credentials, :type => :string, :aliases => '-a', :desc => 'Specify a different credential file'
+      def initialize(*args)
+        super(*args)
+        Socialcast::CommandLine.credentials_file=(options['credentials']) if options['credentials']
+      end
 
       desc "authenticate", "Authenticate using your Socialcast credentials"
       method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'
@@ -47,7 +51,7 @@ module Socialcast
 
         url = ['https://', domain, '/api/authentication'].join
         say "Authenticating #{user} to #{url}"
-        params = {:email => user, :password => password }
+        params = { :email => user, :password => password }
         RestClient.log = Logger.new(STDOUT) if options[:trace]
         RestClient.proxy = options[:proxy] if options[:proxy]
         resource = RestClient::Resource.new url

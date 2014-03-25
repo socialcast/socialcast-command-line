@@ -8,19 +8,28 @@ module Socialcast
       FileUtils.mkdir config_dir, :mode => 0700 unless File.exist?(config_dir)
       config_dir
     end
+
     def self.credentials_file
-      File.join config_dir, 'credentials.yml'
+      @@credentials_file ||= File.join config_dir, 'credentials.yml'
     end
+
+    def self.credentials_file=(value)
+      @@credentials = nil
+      @@credentials_file ||= value
+    end
+
     def self.credentials
       fail 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize' unless File.exist?(credentials_file)
       @@credentials ||= YAML.load_file(credentials_file)
     end
+
     def self.credentials=(options)
       File.open(credentials_file, "w") do |f|
         f.write(options.to_yaml)
       end
       File.chmod 0600, credentials_file
     end
+
     # configure restclient for api call
     def self.resource_for_path(path, options = {}, debug = true)
       RestClient.log = Logger.new(STDOUT) if debug
@@ -28,5 +37,6 @@ module Socialcast
       url = ['https://', credentials[:domain], path].join
       RestClient::Resource.new url, options.merge({ :user => credentials[:user], :password => credentials[:password] })
     end
+
   end
 end
