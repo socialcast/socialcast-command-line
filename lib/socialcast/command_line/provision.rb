@@ -205,9 +205,8 @@ module Socialcast
 
       def each_ldap_connection
         @ldap_config["connections"].each_pair do |connection_name, connection_config|
-          puts "Connecting to #{connection_name} at #{[connection_config["host"], connection_config["port"]].join(':')}"
+          puts "Connecting to #{connection_name} at #{[connection_config["host"], connection_config["port"]].join(':')} with base DN #{connection_config['basedn']} and filter #{connection_config['filter']}"
           ldap = create_ldap_instance(connection_config)
-          puts "Searching base DN: #{connection_config["basedn"]} with filter: #{connection_config["filter"]}"
           yield connection_name, connection_config, ldap
         end
       end
