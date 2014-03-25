@@ -33,11 +33,7 @@ module Socialcast
       include Thor::Actions
 
       method_option :trace, :type => :boolean, :aliases => '-v'
-      method_option :credentials, :type => :string, :aliases => '-a', :desc => 'Specify a different credential file'
-      def initialize(*args)
-        super(*args)
-        Socialcast::CommandLine.credentials_file=(options['credentials']) if options['credentials']
-      end
+      def initialize(*args); super; end
 
       desc "authenticate", "Authenticate using your Socialcast credentials"
       method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'

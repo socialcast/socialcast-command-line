@@ -26,7 +26,8 @@ describe Socialcast::CommandLine::CLI do
                  to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CommandLine.stub(:credentials).and_call_original
-        Socialcast::CommandLine::CLI.start ['share', 'testing', '-a', File.join(Dir.pwd, 'spec', 'fixtures', 'credentials.yml')]
+        ENV['SC_CREDENTIALS_FILE'] = File.join(Dir.pwd, 'spec', 'fixtures', 'credentials.yml')
+        Socialcast::CommandLine::CLI.start ['share', 'testing']
       end
       it 'should send a POST with a message body of "testing" and nil message-type' do
         # See expectations

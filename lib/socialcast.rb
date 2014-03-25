@@ -10,12 +10,7 @@ module Socialcast
     end
 
     def self.credentials_file
-      @@credentials_file ||= File.join config_dir, 'credentials.yml'
-    end
-
-    def self.credentials_file=(value)
-      @@credentials = nil
-      @@credentials_file ||= value
+      ENV['SC_CREDENTIALS_FILE'] || File.join(config_dir, 'credentials.yml')
     end
 
     def self.credentials
