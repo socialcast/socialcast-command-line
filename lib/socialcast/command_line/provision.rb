@@ -25,6 +25,27 @@ module Socialcast
         end
       end
 
+      def fetch_user_hash(identifier, options = {})
+        identifying_field = options.delete(:identifying_field) || 'unique_identifier'
+
+        each_ldap_connection do |connection_name, connection_config, ldap|
+          filter = if connection_config['filter'].present?
+                     Net::LDAP::Filter.construct(connection_config['filter'])
+                   else
+                     Net::LDAP::Filter.pres("objectclass")
+                   end
+
+          attr_mappings = attribute_mappings(connection_name)
+
+          filter = filter & Net::LDAP::Filter.construct("#{attr_mappings[identifying_field]}=#{identifier}")
+
+          search(ldap, :base => connection_config['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name)) do |entry, connection|
+            return build_user_hash_from_mappings(ldap, entry, attr_mappings, permission_mappings(connection_name))
+          end
+        end
+        nil
+      end
+
       def provision
         http_config = @ldap_config.fetch 'http', {}
 
