@@ -25,6 +25,27 @@ module Socialcast
         end
       end
 
+      def fetch_user_hash(identifier, options = {})
+        identifying_field = options.delete(:identifying_field) || 'unique_identifier'
+
+        each_ldap_connection do |connection_name, connection_config, ldap|
+          filter = if connection_config['filter'].present?
+                     Net::LDAP::Filter.construct(connection_config['filter'])
+                   else
+                     Net::LDAP::Filter.pres("objectclass")
+                   end
+
+          attr_mappings = attribute_mappings(connection_name)
+
+          filter = filter & Net::LDAP::Filter.construct("#{attr_mappings[identifying_field]}=#{identifier}")
+
+          search(ldap, :base => connection_config['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name), :size => 1) do |entry, connection|
+            return build_user_hash_from_mappings(ldap, entry, attr_mappings, permission_mappings(connection_name))
+          end
+        end
+        nil
+      end
+
       def provision
         http_config = @ldap_config.fetch 'http', {}
 
@@ -46,8 +67,8 @@ module Socialcast
 
         if @options[:sanity_check]
           puts "Sanity checking users currently marked as needing to be terminated"
-          each_ldap_connection do |ldap_connection_name, connection, ldap|
-            attr_mappings = attribute_mappings(ldap_connection_name)
+          each_ldap_connection do |connection_name, connection_config, ldap|
+            attr_mappings = attribute_mappings(connection_name)
             (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
               combined_filters = []
               ['email', 'unique_identifier', 'employee_number'].each_with_index do |identifier, index|
@@ -55,8 +76,8 @@ module Socialcast
               end
               combined_filters.compact!
               filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
-              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection["filter"])
-              ldap_result = ldap.search(:return_result => true, :base => connection["basedn"], :filter => filter, :attributes => ldap_search_attributes(ldap_connection_name))
+              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection_config["filter"])
+              ldap_result = ldap.search(:return_result => true, :base => connection_config["basedn"], :filter => filter, :attributes => ldap_search_attributes(connection_name))
               raise ProvisionError.new "Found user marked for termination that should not be terminated: #{user_identifiers}" unless ldap_result.blank?
             end
           end
@@ -85,8 +106,8 @@ module Socialcast
       def sync_photos
         http_config = @ldap_config.fetch 'http', {}
 
-        @ldap_config["connections"].keys.each do |ldap_connection_name|
-          attribute_mappings(ldap_connection_name).fetch('profile_photo')
+        @ldap_config["connections"].keys.each do |connection_name|
+          attribute_mappings(connection_name).fetch('profile_photo')
         end
 
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
@@ -129,14 +150,29 @@ module Socialcast
 
       private
 
-      def dereference_mail(entry, ldap_connection, dn_field, mail_attribute)
+      def dereference_mail(entry, ldap, dn_field, mail_attribute)
         dn = grab(entry, dn_field)
-        ldap_connection.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
+        ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
           return grab(manager_entry, mail_attribute)
         end
       end
 
-      def build_user_hash_from_mappings(ldap_connection, entry, attr_mappings, perm_mappings)
+      def search(ldap, search_options)
+        options_for_search = if search_options[:base].present?
+                               Array.wrap(search_options)
+                             else
+                               distinguished_names = Array.wrap(ldap.search_root_dse.namingcontexts)
+                               options_for_search = distinguished_names.map { |dn| search_options.merge(:base => dn ) }
+                             end
+
+        options_for_search.each do |options|
+          ldap.search(options) do |entry|
+            yield(entry)
+          end
+        end
+      end
+
+      def build_user_hash_from_mappings(ldap, entry, attr_mappings, perm_mappings)
         user_hash = HashWithIndifferentAccess.new
         primary_attributes = %w{unique_identifier first_name last_name employee_number}
         primary_attributes.each do |attribute|
@@ -156,7 +192,7 @@ module Socialcast
         user_hash['custom_fields'] = []
         custom_attributes.each do |attribute|
           if attribute == 'manager'
-            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap_connection, attr_mappings[attribute], attr_mappings['email']) }
+            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap, attr_mappings[attribute], attr_mappings['email']) }
           else
             user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attr_mappings[attribute]) }
           end
@@ -185,14 +221,13 @@ module Socialcast
         user_hash
       end
 
-
       def each_ldap_entry(&block)
         count = 0
 
-        each_ldap_connection do |ldap_connection_name, connection, ldap|
-          attr_mappings = attribute_mappings(ldap_connection_name)
-          perm_mappings = permission_mappings(ldap_connection_name)
-          ldap.search(:return_result => false, :filter => connection["filter"], :base => connection["basedn"], :attributes => ldap_search_attributes(ldap_connection_name)) do |entry|
+        each_ldap_connection do |connection_name, connection_config, ldap|
+          attr_mappings = attribute_mappings(connection_name)
+          perm_mappings = permission_mappings(connection_name)
+          search(ldap, :return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
             if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
               yield ldap, entry, attr_mappings, perm_mappings
             end
@@ -204,26 +239,24 @@ module Socialcast
         puts "Finished scanning #{count} users"
       end
 
-
       def each_ldap_connection
-        @ldap_config["connections"].each_pair do |ldap_connection_name, connection|
-          puts "Connecting to #{ldap_connection_name} at #{[connection["host"], connection["port"]].join(':')}"
-          ldap = create_ldap_instance(connection)
-          puts "Searching base DN: #{connection["basedn"]} with filter: #{connection["filter"]}"
-          yield ldap_connection_name, connection, ldap
+        @ldap_config["connections"].each_pair do |connection_name, connection_config|
+          puts "Connecting to #{connection_name} at #{[connection_config["host"], connection_config["port"]].join(':')} with base DN #{connection_config['basedn']} and filter #{connection_config['filter']}"
+          ldap = create_ldap_instance(connection_config)
+          yield connection_name, connection_config, ldap
         end
       end
 
-      def create_ldap_instance(connection)
-        ldap = Net::LDAP.new :host => connection["host"], :port => connection["port"], :base => connection["basedn"]
-        ldap.encryption connection['encryption'].to_sym if connection['encryption']
-        ldap.auth connection["username"], connection["password"]
+      def create_ldap_instance(connection_config)
+        ldap = Net::LDAP.new :host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]
+        ldap.encryption connection_config['encryption'].to_sym if connection_config['encryption']
+        ldap.auth connection_config["username"], connection_config["password"]
         ldap
       end
 
-      def ldap_search_attributes(ldap_connection_name)
-        attr_mappings = attribute_mappings(ldap_connection_name)
-        perm_mappings = permission_mappings(ldap_connection_name)
+      def ldap_search_attributes(connection_name)
+        attr_mappings = attribute_mappings(connection_name)
+        perm_mappings = permission_mappings(connection_name)
 
         membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
         attributes = attr_mappings.values.map do |mapping_value|
