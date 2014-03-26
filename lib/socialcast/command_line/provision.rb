@@ -39,7 +39,7 @@ module Socialcast
 
           filter = filter & Net::LDAP::Filter.construct("#{attr_mappings[identifying_field]}=#{identifier}")
 
-          search(ldap, :base => connection_config['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name)) do |entry, connection|
+          search(ldap, :base => connection_config['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name), :size => 1) do |entry, connection|
             return build_user_hash_from_mappings(ldap, entry, attr_mappings, permission_mappings(connection_name))
           end
         end
