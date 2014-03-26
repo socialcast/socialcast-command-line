@@ -397,8 +397,8 @@ describe Socialcast::CommandLine::Provision do
         provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
 
         user_entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
-        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(user_entry)
+        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=foo,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
+        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=bar,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(user_entry)
 
         provision_instance.provision
       end
