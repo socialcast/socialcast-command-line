@@ -5,7 +5,7 @@ command line interface to the Socialcast API
 http://www.socialcast.com/resources/api.html
 
 ## Contributing
- 
+
 * Fork the project.
 * Fix the issue
 * Add tests
