@@ -25,14 +25,9 @@ describe Socialcast::CommandLine::CLI do
                  with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
-        Socialcast::CommandLine.stub(:credentials).and_call_original
-        ENV['SC_CREDENTIALS_FILE'] = File.join(Dir.pwd, 'spec', 'fixtures', 'credentials.yml')
         Socialcast::CommandLine::CLI.start ['share', 'testing']
       end
       it 'should send a POST with a message body of "testing" and nil message-type' do
-        # See expectations
-      end
-      it 'overrides the credentials file and uses the specified file from the options' do
         # See expectations
       end
     end

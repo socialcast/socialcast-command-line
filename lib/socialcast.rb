@@ -15,7 +15,7 @@ module Socialcast
 
     def self.credentials
       fail 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize' unless File.exist?(credentials_file)
-      @@credentials ||= YAML.load_file(credentials_file)
+      YAML.load_file(credentials_file)
     end
 
     def self.credentials=(options)
