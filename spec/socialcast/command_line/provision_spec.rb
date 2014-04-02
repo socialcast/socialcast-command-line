@@ -14,6 +14,7 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
   let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
+  let!(:ldap_with_profile_photo) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
 
   def create_entry(entry_attributes)
@@ -494,4 +495,46 @@ describe Socialcast::CommandLine::Provision do
       end
     end
   end
+
+  describe '#sync_photos' do
+    before do
+      entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => photo_data
+      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
+      user_search_resource = double(:user_search_resource)
+      search_api_response = {
+        'users' => [
+          {
+            'id' => 7,
+            'avatars' => {
+              'is_system_default' => true
+            }
+          }
+        ]
+      }
+      user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
+      Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+
+      user_resource = double(:user_resource)
+      user_resource.should_receive(:put) do |data|
+        uploaded_data = data[:user][:profile_photo][:data]
+        uploaded_data.path.should =~ /\.png\Z/
+      end
+      Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+    end
+    subject { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo, {}).sync_photos }
+
+    context 'for a binary file' do
+      let(:photo_data) { "\x89PNGabc" }
+      before { RestClient.should_not_receive(:get) }
+      it { should == nil }
+    end
+
+    context 'for an image file' do
+      let(:photo_data) { "http://socialcast.com/someimage.png" }
+      before { RestClient.stub(:get).with(photo_data).and_return("\x89PNGabc") }
+      it { should == nil }
+    end
+
+  end
+
 end
