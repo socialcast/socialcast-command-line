@@ -497,11 +497,9 @@ describe Socialcast::CommandLine::Provision do
   end
 
   describe '#sync_photos' do
-    before do
-      entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => photo_data
-      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
-      user_search_resource = double(:user_search_resource)
-      search_api_response = {
+    let(:user_search_resource) { double(:user_search_resource) }
+    let(:search_api_response) do
+      {
         'users' => [
           {
             'id' => 7,
@@ -511,28 +509,48 @@ describe Socialcast::CommandLine::Provision do
           }
         ]
       }
-      user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
-      Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+    end
+    before do
+      entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => photo_data
+      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
 
-      user_resource = double(:user_resource)
-      user_resource.should_receive(:put) do |data|
-        uploaded_data = data[:user][:profile_photo][:data]
-        uploaded_data.path.should =~ /\.png\Z/
-      end
-      Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+      Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
     end
     subject { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo, {}).sync_photos }
 
-    context 'for a binary file' do
-      let(:photo_data) { "\x89PNGabc" }
-      before { RestClient.should_not_receive(:get) }
-      it { should == nil }
+    context 'for when it does successfully post the photo' do
+      before do
+        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
+        user_resource = double(:user_resource)
+        user_resource.should_receive(:put) do |data|
+          uploaded_data = data[:user][:profile_photo][:data]
+          uploaded_data.path.should =~ /\.png\Z/
+        end
+        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+      end
+      context 'for a binary file' do
+        let(:photo_data) { "\x89PNGabc" }
+        before { RestClient.should_not_receive(:get) }
+        it 'uses the original binary to upload the photo' do; subject; end
+      end
+      context 'for an image file' do
+        let(:photo_data) { "http://socialcast.com/someimage.png" }
+        context 'when it successfully downloads' do
+          before { RestClient.should_receive(:get).with(photo_data).and_return("\x89PNGabc") }
+          it 'downloads the image form the web to upload the photo' do; subject; end
+        end
+      end
     end
 
-    context 'for an image file' do
-      let(:photo_data) { "http://socialcast.com/someimage.png" }
-      before { RestClient.stub(:get).with(photo_data).and_return("\x89PNGabc") }
-      it { should == nil }
+    context 'for when it does not successfully post the photo' do
+      context 'for an image file' do
+        let(:photo_data) { "http://socialcast.com/someimage.png" }
+        before do
+          user_search_resource.should_not_receive(:get)
+          RestClient.should_receive(:get).with(photo_data).and_raise(RestClient::ResourceNotFound)
+        end
+        it 'tries to download the image from the web and rescues 404' do; subject; end
+      end
     end
 
   end

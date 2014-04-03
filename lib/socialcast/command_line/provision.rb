@@ -1,7 +1,6 @@
 require 'net/ldap'
 
 require 'zlib'
-require 'uri'
 require 'builder'
 require 'set'
 require 'fileutils'
@@ -95,7 +94,15 @@ module Socialcast
         each_ldap_entry do |ldap, entry, attr_mappings, _|
           email = grab(entry, attr_mappings['email'])
           if profile_photo_data = grab(entry, attr_mappings['profile_photo'])
-            profile_photo_data = RestClient.get(profile_photo_data) if profile_photo_data.start_with?('http', 'https')
+            if profile_photo_data.start_with?('http')
+              begin
+                profile_photo_data = RestClient.get(profile_photo_data)
+              rescue RestClient::ResourceNotFound => e
+                puts "Unable to downoad photo #{profile_photo_data} for #{email}"
+                puts e.response
+                next
+              end
+            end
             profile_photo_data = profile_photo_data.force_encoding('binary')
 
             user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
