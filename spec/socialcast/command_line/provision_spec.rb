@@ -516,7 +516,7 @@ describe Socialcast::CommandLine::Provision do
 
       Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
     end
-    subject { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo, {}).sync_photos }
+    let(:sync_photos) { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo, {}).sync_photos }
 
     context 'for when it does successfully post the photo' do
       before do
@@ -530,14 +530,20 @@ describe Socialcast::CommandLine::Provision do
       end
       context 'for a binary file' do
         let(:photo_data) { "\x89PNGabc" }
-        before { RestClient.should_not_receive(:get) }
-        it 'uses the original binary to upload the photo' do; subject; end
+        before do
+          RestClient.should_not_receive(:get)
+          sync_photos
+        end
+        it 'uses the original binary to upload the photo' do end
       end
       context 'for an image file' do
         let(:photo_data) { "http://socialcast.com/someimage.png" }
         context 'when it successfully downloads' do
-          before { RestClient.should_receive(:get).with(photo_data).and_return("\x89PNGabc") }
-          it 'downloads the image form the web to upload the photo' do; subject; end
+          before do
+            RestClient.should_receive(:get).with(photo_data).and_return("\x89PNGabc")
+            sync_photos
+          end
+          it 'downloads the image form the web to upload the photo' do end
         end
       end
     end
@@ -548,8 +554,9 @@ describe Socialcast::CommandLine::Provision do
         before do
           user_search_resource.should_not_receive(:get)
           RestClient.should_receive(:get).with(photo_data).and_raise(RestClient::ResourceNotFound)
+          sync_photos
         end
-        it 'tries to download the image from the web and rescues 404' do; subject; end
+        it 'tries to download the image from the web and rescues 404' do end
       end
     end
 
