@@ -98,7 +98,7 @@ module Socialcast
               begin
                 profile_photo_data = RestClient.get(profile_photo_data)
               rescue StandardError => e
-                puts "Unable to downoad photo #{profile_photo_data} for #{email}"
+                puts "Unable to download photo #{profile_photo_data} for #{email}"
                 puts e.response
                 next
               end
