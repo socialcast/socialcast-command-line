@@ -11,7 +11,7 @@ connections:
 
 
 # LDAP attribute mappings
-mappings: 
+mappings:
   first_name: givenName
   last_name: sn
   email: mail

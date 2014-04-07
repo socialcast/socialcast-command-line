@@ -1,4 +1,4 @@
---- 
+---
 connections:
   example_connection_1:
     username: "cn=Directory Manager"
@@ -9,7 +9,7 @@ connections:
     filter: "(mail=*)"
 
 # LDAP attribute mappings
-mappings: 
+mappings:
   first_name: givenName
   last_name: sn
   email: mail
