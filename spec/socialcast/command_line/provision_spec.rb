@@ -3,6 +3,7 @@ require 'spec_helper'
 describe Socialcast::CommandLine::Provision do
   let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.yml')) }
   let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap.yml')) }
+  let!(:ldap_blank_basedn_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_blank_basedn.yml')) }
   let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
   let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
@@ -14,7 +15,9 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
   let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
+  let!(:ldap_with_profile_photo) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
+  let!(:ldap_without_filter_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_filter.yml')) }
 
   def create_entry(entry_attributes)
     Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
@@ -132,12 +135,12 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {})
 
-          ldap_instance1 = double
+          ldap_instance1 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
 
-          ldap_instance2 = double
+          ldap_instance2 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
@@ -190,7 +193,7 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_with_manager_attribute_config, {})
 
-          ldap_instance = double
+          ldap_instance = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
 
           user_entry = create_entry :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
@@ -358,12 +361,12 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_permission_mapping_config, {})
 
-          ldap_instance1 = double
+          ldap_instance1 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry1)
 
-          ldap_instance2 = double
+          ldap_instance2 = double(Net::LDAP)
           provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :member => ["cn=Contractors,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'member'])).and_yield(entry2)
@@ -381,6 +384,28 @@ describe Socialcast::CommandLine::Provision do
               </roles>]]
         end
         it_behaves_like "permission attributes are mapped properly"
+      end
+    end
+
+    context "with no basedn configured" do
+      before do
+        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+
+        provision_instance = Socialcast::CommandLine::Provision.new(ldap_blank_basedn_config, {})
+
+        root_entry = create_entry(:namingcontexts => ['dc=foo,dc=com', 'dc=bar,dc=com'])
+        ldap_instance = double(Net::LDAP)
+        ldap_instance.should_receive(:search_root_dse).once.and_return(root_entry)
+        provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
+
+        user_entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=foo,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
+        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=bar,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(user_entry)
+
+        provision_instance.provision
+      end
+      it "searches all basedns and puts the user in the output file" do
+        result.should =~ /user@example.com/
       end
     end
   end
@@ -424,6 +449,74 @@ describe Socialcast::CommandLine::Provision do
         'account_type' => 'member',
         'roles' => []
       }))
+    end
+  end
+
+  describe "#fetch_user_hash" do
+    context "without specifying an identifying field" do
+      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_with_unique_identifier_config, {}) }
+      let(:entry) { create_entry :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name' }
+      before do
+        filter = Net::LDAP::Filter.construct('(&(mail=*)(uid=unique identifier))')
+        Net::LDAP.any_instance.should_receive(:search).once
+          .with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'], :filter => filter))
+          .and_yield(entry)
+      end
+      it do
+        provision_instance.fetch_user_hash('unique identifier').should == {
+          'account_type' => 'member',
+          'contact_info' => {},
+          'custom_fields' => [],
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'roles' => [],
+          'unique_identifier' => 'unique identifier'
+        }
+      end
+    end
+    context "specifying an identifying field" do
+      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_default_config, {}) }
+      let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
+      before do
+        filter = Net::LDAP::Filter.construct('(&(mail=*)(mail=user@example.com))')
+        Net::LDAP.any_instance.should_receive(:search).once
+          .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
+          .and_yield(entry)
+      end
+      it do
+        provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
+          'account_type' => 'member',
+          'contact_info' => {
+            'email' => 'user@example.com'
+          },
+          'custom_fields' => [],
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'roles' => []
+        }
+      end
+    end
+    context "without a filter specified" do
+      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_without_filter_config, {}) }
+      let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
+      before do
+        filter = Net::LDAP::Filter.construct('(&(objectclass=*)(mail=user@example.com))')
+        Net::LDAP.any_instance.should_receive(:search).once
+          .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
+          .and_yield(entry)
+      end
+      it do
+        provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
+          'account_type' => 'member',
+          'contact_info' => {
+            'email' => 'user@example.com'
+          },
+          'custom_fields' => [],
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'roles' => []
+        }
+      end
     end
   end
 
@@ -494,4 +587,71 @@ describe Socialcast::CommandLine::Provision do
       end
     end
   end
+
+  describe '#sync_photos' do
+    let(:user_search_resource) { double(:user_search_resource) }
+    let(:search_api_response) do
+      {
+        'users' => [
+          {
+            'id' => 7,
+            'avatars' => {
+              'is_system_default' => true
+            }
+          }
+        ]
+      }
+    end
+    before do
+      entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => photo_data
+      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
+
+      Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+    end
+    let(:sync_photos) { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo, {}).sync_photos }
+
+    context 'for when it does successfully post the photo' do
+      before do
+        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
+        user_resource = double(:user_resource)
+        user_resource.should_receive(:put) do |data|
+          uploaded_data = data[:user][:profile_photo][:data]
+          uploaded_data.path.should =~ /\.png\Z/
+        end
+        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+      end
+      context 'for a binary file' do
+        let(:photo_data) { "\x89PNGabc" }
+        before do
+          RestClient.should_not_receive(:get)
+          sync_photos
+        end
+        it 'uses the original binary to upload the photo' do end
+      end
+      context 'for an image file' do
+        let(:photo_data) { "http://socialcast.com/someimage.png" }
+        context 'when it successfully downloads' do
+          before do
+            RestClient.should_receive(:get).with(photo_data).and_return("\x89PNGabc")
+            sync_photos
+          end
+          it 'downloads the image form the web to upload the photo' do end
+        end
+      end
+    end
+
+    context 'for when it does not successfully post the photo' do
+      context 'for an image file' do
+        let(:photo_data) { "http://socialcast.com/someimage.png" }
+        before do
+          user_search_resource.should_not_receive(:get)
+          RestClient.should_receive(:get).with(photo_data).and_raise(RestClient::ResourceNotFound)
+          sync_photos
+        end
+        it 'tries to download the image from the web and rescues 404' do end
+      end
+    end
+
+  end
+
 end

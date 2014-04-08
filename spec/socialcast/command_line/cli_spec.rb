@@ -12,11 +12,14 @@ describe Socialcast::CommandLine::CLI do
   let(:ldap_with_profile_photo_config) { YAML.load_file(ldap_with_profile_photo_config_file) }
   let(:ldap_without_permission_mappings_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_permission_mappings.yml')) }
 
+  before do
+    Socialcast::CommandLine.stub(:credentials).and_return(credentials)
+  end
+
   describe '#share' do
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => { "message" => { "body" => "testing", "url" => nil, "message_type" => nil, "attachment_ids" => [], "group_id" => nil }}).
                  with(:headers => {'Accept' => 'application/json'}).
@@ -31,7 +34,6 @@ describe Socialcast::CommandLine::CLI do
 
     context 'with a message_type message' do
       before do
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:review\_request/).
                  with(:body => /please\sreview/).
@@ -46,7 +48,6 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with a group_id param' do
       before do
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /group\_id\"\:123/).
                  with(:headers => {'Accept' => 'application/json'}).
@@ -60,7 +61,6 @@ describe Socialcast::CommandLine::CLI do
     end
     context "with a proxy" do
       before do
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
                  with(:body => /message\_type\"\:null/).
                  with(:body => /testing/).
@@ -93,7 +93,6 @@ describe Socialcast::CommandLine::CLI do
         @entry[:jpegPhoto] = photo_data
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         user_search_resource = double(:user_search_resource)
         search_api_response = {
           'users' => [
@@ -131,7 +130,6 @@ describe Socialcast::CommandLine::CLI do
         @entry[:jpegPhoto] = photo_data
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         user_search_resource = double(:user_search_resource)
         search_api_response = {
           'users' => [
@@ -165,7 +163,6 @@ describe Socialcast::CommandLine::CLI do
         @entry[:jpegPhoto] = "\x89PNGabc"
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         user_search_resource = double(:user_search_resource)
         search_api_response = {
           'users' => [
@@ -202,7 +199,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -218,7 +214,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
 
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
@@ -235,7 +230,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
 
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
@@ -256,7 +250,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).with(hash_including('config' => '/my/path/to/ldap.yml')).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
@@ -273,7 +266,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
@@ -292,7 +284,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_plugin_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         RestClient::Resource.any_instance.stub(:post)
@@ -312,7 +303,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -334,7 +324,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -356,7 +345,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -379,7 +367,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -404,7 +391,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -429,7 +415,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -456,7 +441,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_interpolated_values_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -482,7 +466,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_manager_attribute_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -512,7 +495,6 @@ describe Socialcast::CommandLine::CLI do
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine.stub(:credentials).and_return(credentials)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 

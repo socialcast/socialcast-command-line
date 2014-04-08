@@ -7,11 +7,11 @@ connections:
     host: localhost
     port: 1389
     basedn: "dc=example,dc=com"
-    filter: "(mail=*)"
+    filter: 
 
 
 # LDAP attribute mappings
-mappings:
+mappings: 
   first_name: givenName
   last_name: sn
   email: mail
