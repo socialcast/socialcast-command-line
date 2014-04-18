@@ -22,8 +22,8 @@ module Socialcast
       end
 
       def each_user_hash
-        each_ldap_entry do |ldap, entry, attr_mappings, perm_mappings|
-          yield build_user_hash_from_mappings(ldap, entry, attr_mappings, perm_mappings)
+        each_ldap_entry do |entry, connection_name, ldap|
+          yield build_user_hash_from_mappings(entry, connection_name, ldap)
         end
       end
 
@@ -42,7 +42,7 @@ module Socialcast
           filter = filter & Net::LDAP::Filter.construct("#{attr_mappings[identifying_field]}=#{identifier}")
 
           search(ldap, :base => connection_config(connection_name)['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name), :size => 1) do |entry, connection|
-            return build_user_hash_from_mappings(ldap, entry, attr_mappings, permission_mappings(connection_name))
+            return build_user_hash_from_mappings(entry, connection_name, ldap)
           end
         end
         nil
@@ -114,7 +114,8 @@ module Socialcast
 
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
 
-        each_ldap_entry do |ldap, entry, attr_mappings, _|
+        each_ldap_entry do |entry, connection_name, _|
+          attr_mappings = attribute_mappings(connection_name)
           email = grab(entry, attr_mappings['email'])
           if profile_photo_data = grab(entry, attr_mappings['profile_photo'])
             if profile_photo_data.start_with?('http')
@@ -187,9 +188,11 @@ module Socialcast
         end
       end
 
-      def build_user_hash_from_mappings(ldap, entry, attr_mappings, perm_mappings)
+      def build_user_hash_from_mappings(entry, connection_name, ldap)
         user_hash = HashWithIndifferentAccess.new
         primary_attributes = %w{unique_identifier first_name last_name employee_number}
+        attr_mappings = attribute_mappings(connection_name)
+        perm_mappings = permission_mappings(connection_name)
         primary_attributes.each do |attribute|
           next unless attr_mappings.has_key?(attribute)
           user_hash[attribute] = grab(entry, attr_mappings[attribute])
@@ -241,10 +244,9 @@ module Socialcast
 
         each_ldap_connection do |connection_name, ldap|
           attr_mappings = attribute_mappings(connection_name)
-          perm_mappings = permission_mappings(connection_name)
           search(ldap, :return_result => false, :filter => connection_config(connection_name)["filter"], :base => connection_config(connection_name)["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
             if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
-              yield ldap, entry, attr_mappings, perm_mappings
+              yield entry, connection_name, ldap
             end
 
             count += 1
