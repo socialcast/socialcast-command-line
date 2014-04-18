@@ -30,9 +30,9 @@ module Socialcast
       def fetch_user_hash(identifier, options = {})
         identifying_field = options.delete(:identifying_field) || 'unique_identifier'
 
-        each_ldap_connection do |connection_name, connection_config, ldap|
-          filter = if connection_config['filter'].present?
-                     Net::LDAP::Filter.construct(connection_config['filter'])
+        each_ldap_connection do |connection_name, ldap|
+          filter = if connection_config(connection_name)['filter'].present?
+                     Net::LDAP::Filter.construct(connection_config(connection_name)['filter'])
                    else
                      Net::LDAP::Filter.pres("objectclass")
                    end
@@ -41,7 +41,7 @@ module Socialcast
 
           filter = filter & Net::LDAP::Filter.construct("#{attr_mappings[identifying_field]}=#{identifier}")
 
-          search(ldap, :base => connection_config['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name), :size => 1) do |entry, connection|
+          search(ldap, :base => connection_config(connection_name)['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name), :size => 1) do |entry, connection|
             return build_user_hash_from_mappings(ldap, entry, attr_mappings, permission_mappings(connection_name))
           end
         end
@@ -69,7 +69,7 @@ module Socialcast
 
         if @options[:sanity_check]
           puts "Sanity checking users currently marked as needing to be terminated"
-          each_ldap_connection do |connection_name, connection_config, ldap|
+          each_ldap_connection do |connection_name, ldap|
             attr_mappings = attribute_mappings(connection_name)
             (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
               combined_filters = []
@@ -78,8 +78,8 @@ module Socialcast
               end
               combined_filters.compact!
               filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
-              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection_config["filter"])
-              ldap_result = ldap.search(:return_result => true, :base => connection_config["basedn"], :filter => filter, :attributes => ldap_search_attributes(connection_name))
+              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection_config(connection_name)["filter"])
+              ldap_result = ldap.search(:return_result => true, :base => connection_config(connection_name)["basedn"], :filter => filter, :attributes => ldap_search_attributes(connection_name))
               raise ProvisionError.new "Found user marked for termination that should not be terminated: #{user_identifiers}" unless ldap_result.blank?
             end
           end
@@ -161,6 +161,10 @@ module Socialcast
 
       private
 
+      def connection_config(connection_name)
+        @ldap_config['connections'][connection_name]
+      end
+
       def dereference_mail(entry, ldap, dn_field, mail_attribute)
         dn = grab(entry, dn_field)
         ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
@@ -235,10 +239,10 @@ module Socialcast
       def each_ldap_entry(&block)
         count = 0
 
-        each_ldap_connection do |connection_name, connection_config, ldap|
+        each_ldap_connection do |connection_name, ldap|
           attr_mappings = attribute_mappings(connection_name)
           perm_mappings = permission_mappings(connection_name)
-          search(ldap, :return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
+          search(ldap, :return_result => false, :filter => connection_config(connection_name)["filter"], :base => connection_config(connection_name)["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
             if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
               yield ldap, entry, attr_mappings, perm_mappings
             end
@@ -254,7 +258,7 @@ module Socialcast
         @ldap_config["connections"].each_pair do |connection_name, connection_config|
           puts "Connecting to #{connection_name} at #{[connection_config["host"], connection_config["port"]].join(':')} with base DN #{connection_config['basedn']} and filter #{connection_config['filter']}"
           ldap = create_ldap_instance(connection_config)
-          yield connection_name, connection_config, ldap
+          yield connection_name, ldap
         end
       end
 
