@@ -4,6 +4,8 @@ require 'zlib'
 require 'builder'
 require 'set'
 require 'fileutils'
+require 'active_support/core_ext/object/blank'
+require 'active_support/core_ext/array/wrap'
 
 module Socialcast
   module CommandLine
