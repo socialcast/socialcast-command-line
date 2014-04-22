@@ -73,13 +73,6 @@ module Socialcast
           attributes << membership_attribute
         end
 
-        def ldap
-          @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
-            ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
-            ldap_instance.auth connection_config["username"], connection_config["password"]
-          end
-        end
-
         def attribute_mappings
           @attribute_mappings ||= connection_config.fetch 'mappings', nil
           @attribute_mappings ||= @config.fetch 'mappings', {}
@@ -115,6 +108,13 @@ module Socialcast
         end
 
         private
+
+        def ldap
+          @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
+            ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
+            ldap_instance.auth connection_config["username"], connection_config["password"]
+          end
+        end
 
         def search(search_options)
           options_for_search = if search_options[:base].present?
