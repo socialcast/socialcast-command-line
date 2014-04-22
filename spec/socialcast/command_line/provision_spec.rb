@@ -410,7 +410,7 @@ describe Socialcast::CommandLine::Provision do
   end
 
   describe "#each_user_hash" do
-    let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_default_config, :plugins => 'socialcast/command_line/fake_attribute_map') }
+    let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_default_config) }
     before do
       entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
       Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
