@@ -319,24 +319,7 @@ describe Socialcast::CommandLine::Provision do
         it_behaves_like "permission attributes are mapped properly"
       end
 
-      context "with permission mappings at the connection level for one connection" do
-        let(:ldap_group_attribute) { 'memberOf' }
-        let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
-        let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ldap_groups }
-        before do
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
-          Socialcast::CommandLine::Provision.new(ldap_connection_permission_mapping_config, {}).provision
-        end
-        let(:expected_permission_xml) do
-          %Q[<account-type>member</account-type>
-              <roles type="array">
-                <role>reach_admin</role>
-              </roles>]
-        end
-        it_behaves_like "permission attributes are mapped properly"
-      end
-
-      context "with permission mappings at the connection level for multiple connections" do
+      context "with permission mappings at the connection level" do
         let(:ldap_group_attribute) { 'memberOf' }
         let(:ldap_groups) {  }
         before do
