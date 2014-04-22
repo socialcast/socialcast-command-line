@@ -190,18 +190,13 @@ module Socialcast
         end
 
         def add_roles(entry, user_hash)
+          return unless permission_roles_mappings = permission_mappings['roles']
           membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
           memberships = entry[membership_attribute]
-          if permission_roles_mappings = permission_mappings['roles']
-            user_hash['roles'] = []
-            permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
-              Array.wrap(ldap_groups).each do |ldap_group|
-                if memberships.include?(ldap_group)
-                  user_hash['roles'] << socialcast_role
-                  break
-                end
-              end
-            end
+
+          user_hash['roles'] = []
+          permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
+            user_hash['roles'] << socialcast_role if Array.wrap(ldap_groups).any? { |ldap_group| memberships.include?(ldap_group) }
           end
         end
 
