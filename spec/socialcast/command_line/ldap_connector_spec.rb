@@ -76,7 +76,6 @@ describe Socialcast::CommandLine::LDAPConnector do
         }))
       end
     end
-
     context "with attribute mappings at the connection level" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       before do
@@ -97,7 +96,6 @@ describe Socialcast::CommandLine::LDAPConnector do
         }))
       end
     end
-
     context "with permission mappings at the connection level" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=BizAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
@@ -133,7 +131,6 @@ describe Socialcast::CommandLine::LDAPConnector do
         }))
       end
     end
-
     context "with external ldap group memberships" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:entry) do
@@ -237,6 +234,61 @@ describe Socialcast::CommandLine::LDAPConnector do
           'account_type' => 'member',
           'roles' => [],
           'groups' => ['sales_group_id', 'sf_office_group_id']
+        }))
+      end
+    end
+    context "with socialcast group ldap group membership mappings at the connection level" do
+      let(:group_membership_mappings) do
+        {
+          "filter" => "(objectClass=groupOfUniqueNames)",
+          "unique_identifier" => "gid"
+        }
+      end
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:group_entry) do
+        create_entry(:dn => "cn=Sales,dc=example,dc=com", :groupId => "sales_group_id")
+      end
+      let(:user_entry) do
+        create_entry(:mail => 'user@example.com',
+          :givenName => 'first name',
+          :sn => 'last name',
+          :isMemberOf => ["cn=SFOffice,dc=example,dc=com", "cn=Sales,dc=example,dc=com"])
+      end
+      before do
+        connection.merge!({
+          "group_membership_mappings" => {
+            "filter" => "(groupId=*)",
+            "unique_identifier" => "groupId"
+          }
+        })
+        ldap_instance = double(Net::LDAP, :auth => nil)
+        Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
+
+        ldap_instance.should_receive(:search).once.ordered.with(
+          :return_result => false,
+          :filter => "(mail=*)",
+          :base => "dc=example,dc=com",
+          :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']).and_yield(user_entry)
+
+        ldap_instance.should_receive(:search).once.ordered.with(
+          :return_result => false,
+          :filter => "(groupId=*)",
+          :base => "dc=example,dc=com",
+          :attributes => ["groupId"]).and_yield(group_entry)
+      end
+      it "includes group memberships" do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => [],
+          'groups' => ['sales_group_id']
         }))
       end
     end
