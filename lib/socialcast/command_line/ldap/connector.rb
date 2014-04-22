@@ -28,6 +28,7 @@ module Socialcast
         end
 
         def fetch_user_hash(identifier, options)
+          options = options.dup
           identifying_field = options.delete(:identifying_field) || 'unique_identifier'
 
           filter = if connection_config['filter'].present?

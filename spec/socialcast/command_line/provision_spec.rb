@@ -16,7 +16,6 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
   let!(:ldap_with_profile_photo) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
-  let!(:ldap_without_filter_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_filter.yml')) }
 
   def create_entry(entry_attributes)
     Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
@@ -432,69 +431,73 @@ describe Socialcast::CommandLine::Provision do
   end
 
   describe "#fetch_user_hash" do
-    context "without specifying an identifying field" do
-      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_with_unique_identifier_config, {}) }
-      let(:entry) { create_entry :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name' }
+    context "when the first connector returns the entry" do
+      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {}) }
+      let(:entry) { create_entry :mailCon => 'user@example.com' }
       before do
-        filter = Net::LDAP::Filter.construct('(&(mail=*)(uid=unique identifier))')
+        filter = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
         Net::LDAP.any_instance.should_receive(:search).once
-          .with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'], :filter => filter))
+          .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
-      it do
-        provision_instance.fetch_user_hash('unique identifier').should == {
-          'account_type' => 'member',
-          'contact_info' => {},
-          'custom_fields' => [],
-          'first_name' => 'first name',
-          'last_name' => 'last name',
-          'roles' => [],
-          'unique_identifier' => 'unique identifier'
-        }
-      end
-    end
-    context "specifying an identifying field" do
-      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_default_config, {}) }
-      let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
-      before do
-        filter = Net::LDAP::Filter.construct('(&(mail=*)(mail=user@example.com))')
-        Net::LDAP.any_instance.should_receive(:search).once
-          .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
-          .and_yield(entry)
-      end
-      it do
+      it "returns the entry" do
         provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user@example.com'
           },
           'custom_fields' => [],
-          'first_name' => 'first name',
-          'last_name' => 'last name',
           'roles' => []
         }
       end
     end
-    context "without a filter specified" do
-      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_without_filter_config, {}) }
-      let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
+    context "when another connector returns the entry" do
+      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {}) }
+      let(:entry) { create_entry :mailCon2 => 'user@example.com', :firstName => 'first name' }
       before do
-        filter = Net::LDAP::Filter.construct('(&(objectclass=*)(mail=user@example.com))')
-        Net::LDAP.any_instance.should_receive(:search).once
-          .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
+        ldap_instance1 = double(Net::LDAP, :auth => nil)
+        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
+        filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
+        ldap_instance1.should_receive(:search).once.ordered
+          .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
+
+        ldap_instance2 = double(Net::LDAP, :auth => nil)
+        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
+        filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
+        ldap_instance2.should_receive(:search).once.ordered
+          .with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'], :filter => filter2))
           .and_yield(entry)
+
       end
-      it do
+      it "returns the entry" do
         provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user@example.com'
           },
-          'custom_fields' => [],
           'first_name' => 'first name',
-          'last_name' => 'last name',
+          'custom_fields' => [],
           'roles' => []
         }
+      end
+    end
+    context "when no connectors return the entry" do
+      let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {}) }
+      before do
+        ldap_instance1 = double(Net::LDAP, :auth => nil)
+        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
+        filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
+        ldap_instance1.should_receive(:search)
+          .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
+
+        ldap_instance2 = double(Net::LDAP, :auth => nil)
+        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
+        filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
+        ldap_instance2.should_receive(:search).once.ordered
+          .with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'], :filter => filter2))
+      end
+      it "returns nil" do
+        provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should be_nil
       end
     end
   end
