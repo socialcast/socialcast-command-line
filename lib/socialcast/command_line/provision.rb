@@ -2,7 +2,7 @@ require 'zlib'
 require 'builder'
 require 'set'
 require 'fileutils'
-require 'socialcast/command_line/ldap/connector'
+require 'socialcast/command_line/ldap_connector'
 
 module Socialcast
   module CommandLine
@@ -154,7 +154,7 @@ module Socialcast
         @connectors ||= {}
 
         unless @connectors[connection_name]
-          @connectors[connection_name] = Socialcast::CommandLine::LDAP::Connector.new(connection_name, @ldap_config)
+          @connectors[connection_name] = Socialcast::CommandLine::LDAPConnector.new(connection_name, @ldap_config)
         end
 
         @connectors[connection_name]

@@ -461,7 +461,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:manager] = 'cn=bossman,dc=example,dc=com'
         @manager_email = 'bossman@example.com'
 
-        Socialcast::CommandLine::LDAP::Connector.any_instance.should_receive(:dereference_mail).with(kind_of(Net::LDAP::Entry), "ldap_manager", "mail").and_return(@manager_email)
+        Socialcast::CommandLine::LDAPConnector.any_instance.should_receive(:dereference_mail).with(kind_of(Net::LDAP::Entry), "ldap_manager", "mail").and_return(@manager_email)
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
         @result = ''
@@ -491,7 +491,7 @@ describe Socialcast::CommandLine::CLI do
         ldap_return = double("ldapreturn")
         ldap_return.should_receive(:search).with(include(:filter => Net::LDAP::Filter.construct("(&(mail=sean@example.com)(mail=*))"))).and_return(@valid_entry)
 
-        Socialcast::CommandLine::LDAP::Connector.any_instance.should_receive(:ldap).and_return(ldap_search_block, ldap_return)
+        Socialcast::CommandLine::LDAPConnector.any_instance.should_receive(:ldap).and_return(ldap_search_block, ldap_return)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
