@@ -76,6 +76,27 @@ describe Socialcast::CommandLine::LDAPConnector do
         }))
       end
     end
+    context "with attribute mappings at the connection level" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      before do
+        connection.merge!({ "mappings" => { "email" => "mailConnection" } })
+        entry = create_entry :mailConnection => 'user@example.com'
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mailConnection', 'isMemberOf'])).and_yield(entry)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
     context "with external ldap group memberships" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:entry) do
