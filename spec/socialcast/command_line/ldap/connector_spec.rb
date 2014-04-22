@@ -15,24 +15,77 @@ describe Socialcast::CommandLine::LDAP::Connector do
   end
 
   describe "#each_user_hash" do
-    let(:connector) { Socialcast::CommandLine::LDAP::Connector.new('example_connection_1', ldap_default_config) }
-    let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
-    before do
-      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+    context "without ldap group memberships" do
+      let(:connector) { Socialcast::CommandLine::LDAP::Connector.new('example_connection_1', ldap_default_config) }
+      let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
     end
-    it do
-      expect do |blk|
-        connector.each_user_hash(&blk)
-      end.to yield_with_args(HashWithIndifferentAccess.new({
-        'first_name' => 'first name',
-        'last_name' => 'last name',
-        'contact_info' => {
-          'email' => 'user@example.com',
-        },
-        'custom_fields' => [],
-        'account_type' => 'member',
-        'roles' => []
-      }))
+    context "with external ldap group memberships" do
+      let(:connector) { Socialcast::CommandLine::LDAP::Connector.new('example_connection_1', ldap_default_config) }
+      let(:entry) do
+        create_entry(:mail => 'user@example.com',
+          :givenName => 'first name',
+          :sn => 'last name',
+          :isMemberOf => ["cn=External,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"])
+      end
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it "sets the account_type to 'external' and does not include roles" do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'external'
+        }))
+      end
+    end
+    context "with role ldap group memberships" do
+      let(:connector) { Socialcast::CommandLine::LDAP::Connector.new('example_connection_1', ldap_default_config) }
+      let(:entry) do
+        create_entry(:mail => 'user@example.com',
+          :givenName => 'first name',
+          :sn => 'last name',
+          :isMemberOf => ["cn=TownHallAdmins,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com"])
+      end
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it "sets the account_type to 'member' and includes roles" do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => ['sbi_admin', 'town_hall_admin']
+        }))
+      end
     end
   end
 
