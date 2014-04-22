@@ -4,7 +4,6 @@ describe Socialcast::CommandLine::Provision do
   let!(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.yml')) }
   let!(:ldap_default_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap.yml')) }
   let!(:ldap_blank_basedn_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_blank_basedn.yml')) }
-  let!(:ldap_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_mapping.yml')) }
   let!(:ldap_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_connection_permission_mapping.yml')) }
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
   let!(:ldap_multiple_connection_permission_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_permission_mappings.yml')) }
@@ -113,23 +112,7 @@ describe Socialcast::CommandLine::Provision do
         it_behaves_like "attributes are mapped properly"
       end
 
-      context "with mappings at the connection level for one connection" do
-        before do
-          entry = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry)
-
-          Socialcast::CommandLine::Provision.new(ldap_connection_mapping_config, {}).provision
-        end
-        let(:expected_attribute_xml) do
-          %Q[<contact-info>
-               <email>user@example.com</email>
-              </contact-info>
-              <custom-fields type="array"/>]
-        end
-        it_behaves_like "attributes are mapped properly"
-      end
-
-      context "with mappings at the connection level for multiple connections" do
+      context "with mappings at the connection level" do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {})
 
