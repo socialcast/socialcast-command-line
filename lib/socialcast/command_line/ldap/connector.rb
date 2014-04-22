@@ -143,10 +143,30 @@ module Socialcast
           @permission_mappings ||= @config.fetch 'permission_mappings', {}
         end
 
+        def group_membership_mappings
+          # TODO: handle connection-level mappings
+          @group_membership_mappings ||= @config.fetch 'group_membership_mappings', nil
+        end
+
         def dereference_mail(entry, dn_field, mail_attribute)
           dn = grab(entry, dn_field)
           ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
             return grab(manager_entry, mail_attribute)
+          end
+        end
+
+        def group_unique_identifiers
+          @group_uids ||= {}.tap do |groups|
+            search_options = {
+              :return_result => false,
+              :filter => group_membership_mappings["filter"],
+              :base => connection_config["basedn"],
+              :attributes => [group_membership_mappings["unique_identifier"]]
+            }
+
+            search(search_options) do |entry|
+              groups[grab(entry, "dn")] = grab(entry, group_membership_mappings["unique_identifier"])
+            end
           end
         end
 
@@ -200,6 +220,19 @@ module Socialcast
           end
         end
 
+        def add_groups(entry, user_hash)
+          return unless group_membership_mappings.present?
+
+          membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
+          memberships = entry[membership_attribute]
+
+          mapped_group_dns = (group_unique_identifiers.keys & memberships)
+
+          user_hash['groups'] = mapped_group_dns.each_with_object([]) do |ldap_group_dn, socialcast_groups|
+            socialcast_groups << group_unique_identifiers[ldap_group_dn]
+          end
+        end
+
         def build_user_hash_from_mappings(entry)
           user_hash = HashWithIndifferentAccess.new
 
@@ -208,6 +241,7 @@ module Socialcast
           add_custom_attributes(entry, user_hash)
           add_account_type(entry, user_hash)
           add_roles(entry, user_hash) if user_hash['account_type'] == 'member'
+          add_groups(entry, user_hash)
 
           user_hash
         end
