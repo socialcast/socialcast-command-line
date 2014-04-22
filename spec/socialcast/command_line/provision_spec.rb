@@ -12,7 +12,6 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_with_class_ldap_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_class_ldap_attribute.yml')) }
   let!(:ldap_with_custom_attributes_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_custom_attributes.yml')) }
   let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
-  let!(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
   let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
   let!(:ldap_with_profile_photo) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
@@ -135,13 +134,13 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_mapping_config, {})
 
-          ldap_instance1 = double(Net::LDAP)
-          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
+          ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
+          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
 
-          ldap_instance2 = double(Net::LDAP)
-          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
+          ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
+          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
 
@@ -193,8 +192,8 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_with_manager_attribute_config, {})
 
-          ldap_instance = double(Net::LDAP)
-          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
+          ldap_instance = double(Net::LDAP, :encryption => nil, :auth => nil)
+          Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
 
           user_entry = create_entry :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
           manager_entry = create_entry :mail => 'boss@example.com'
@@ -361,13 +360,13 @@ describe Socialcast::CommandLine::Provision do
         before do
           provision_instance = Socialcast::CommandLine::Provision.new(ldap_multiple_connection_permission_mapping_config, {})
 
-          ldap_instance1 = double(Net::LDAP)
-          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance1)
+          ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
+          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry1)
 
-          ldap_instance2 = double(Net::LDAP)
-          provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance2)
+          ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
+          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :member => ["cn=Contractors,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'member'])).and_yield(entry2)
 
@@ -394,9 +393,9 @@ describe Socialcast::CommandLine::Provision do
         provision_instance = Socialcast::CommandLine::Provision.new(ldap_blank_basedn_config, {})
 
         root_entry = create_entry(:namingcontexts => ['dc=foo,dc=com', 'dc=bar,dc=com'])
-        ldap_instance = double(Net::LDAP)
+        ldap_instance = double(Net::LDAP, :encryption => nil, :auth => nil)
         ldap_instance.should_receive(:search_root_dse).once.and_return(root_entry)
-        provision_instance.should_receive(:create_ldap_instance).once.ordered.and_return(ldap_instance)
+        Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
 
         user_entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
         ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=foo,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
@@ -406,26 +405,6 @@ describe Socialcast::CommandLine::Provision do
       end
       it "searches all basedns and puts the user in the output file" do
         result.should =~ /user@example.com/
-      end
-    end
-  end
-
-  describe '#dereference_mail' do
-    context "called on directreport entry" do
-      let(:entry) do
-        Net::LDAP::Entry.new("cn=directreport,dc=example,dc=com").tap do |e|
-          e[:mail] = 'directreport@example.com'
-          e[:manager] = 'cn=bossman,dc=example,dc=com'
-        end
-      end
-      let(:ldap) { double('net/ldap') }
-      before do
-        manager_entry = Net::LDAP::Entry.new("cn=bossman,dc=example,dc=com")
-        manager_entry[:mail] = 'bossman@example.com'
-        ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(manager_entry)
-      end
-      it "will return bossman email" do
-        Socialcast::CommandLine::Provision.new(ldap_default_config, {}).send(:dereference_mail, entry, ldap, 'manager', 'mail').should == "bossman@example.com"
       end
     end
   end
@@ -516,74 +495,6 @@ describe Socialcast::CommandLine::Provision do
           'last_name' => 'last name',
           'roles' => []
         }
-      end
-    end
-  end
-
-  describe "#grab" do
-    let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_with_plugin_mapping_config, :plugins => 'socialcast/command_line/fake_attribute_map') }
-    let(:entry) do
-      Net::LDAP::Entry.new("cn=sean,dc=example,dc=com").tap do |e|
-        e[:mail] = 'sean@example.com'
-      end
-    end
-    context "passed hash for attribute" do
-      it "returns a string that used defined string template" do
-        provision_instance.send(:grab, entry, { "value" => "123%{mail}", "mail" => "mail" }).should == "123sean@example.com"
-      end
-    end
-    context "passed string for attribute" do
-      it "returns exact string stored in entry" do
-        provision_instance.send(:grab, entry, "mail").should == "sean@example.com"
-      end
-    end
-    context "passed string that can be constantized and the resulting Class responds to run" do
-      it "returns result of run method" do
-        module Socialcast::CommandLine
-          class FakeAttributeMap
-            def self.run(entry)
-              return "#{entry[:mail].first.gsub(/a/,'b')}"
-            end
-          end
-        end
-        provision_instance.send(:grab, entry, "Socialcast::CommandLine::FakeAttributeMap").should == "sebn@exbmple.com"
-      end
-    end
-    context "passed string that must be classified and the resulting Class responds to run" do
-      it "returns result of run method" do
-        module Socialcast::CommandLine
-          class FakeAttributeMap
-            def self.run(entry)
-              return "#{entry[:mail].first.gsub(/a/,'b')}"
-            end
-          end
-        end
-        provision_instance.send(:grab, entry, "socialcast/command_line/fake_attribute_map").should == "sebn@exbmple.com"
-      end
-    end
-    context "attribute passed has a collision between string and Class" do
-      before do
-        class Mail
-          def self.run(entry)
-            return "#{entry[:mail].first.gsub(/a/,'b')}"
-          end
-        end
-      end
-      after do
-        Object.send(:remove_const, :Mail)
-      end
-      it "returns the result of the Class run method" do
-        provision_instance.send(:grab, entry, "mail").should == "sebn@exbmple.com"
-      end
-    end
-    context "attribute passed constantizes to a module instead of a class" do
-      it "returns the result of the Module run method" do
-        module FakeAttributeMap
-          def self.run(entry)
-            return "#{entry[:mail].first.gsub(/a/,'b')}"
-          end
-        end
-        provision_instance.send(:grab, entry, "FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
   end

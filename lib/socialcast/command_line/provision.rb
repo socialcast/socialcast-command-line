@@ -1,11 +1,8 @@
-require 'net/ldap'
-
 require 'zlib'
 require 'builder'
 require 'set'
 require 'fileutils'
-require 'active_support/core_ext/object/blank'
-require 'active_support/core_ext/array/wrap'
+require 'socialcast/command_line/ldap/connector'
 
 module Socialcast
   module CommandLine
@@ -22,28 +19,17 @@ module Socialcast
       end
 
       def each_user_hash
-        each_ldap_entry do |entry, connection_name, ldap|
-          yield build_user_hash_from_mappings(entry, connection_name, ldap)
+        each_ldap_connector do |connector|
+          connector.each_user_hash do |user_hash|
+            yield user_hash
+          end
         end
       end
 
       def fetch_user_hash(identifier, options = {})
-        identifying_field = options.delete(:identifying_field) || 'unique_identifier'
-
-        each_ldap_connection do |connection_name, ldap|
-          filter = if connection_config(connection_name)['filter'].present?
-                     Net::LDAP::Filter.construct(connection_config(connection_name)['filter'])
-                   else
-                     Net::LDAP::Filter.pres("objectclass")
-                   end
-
-          attr_mappings = attribute_mappings(connection_name)
-
-          filter = filter & Net::LDAP::Filter.construct("#{attr_mappings[identifying_field]}=#{identifier}")
-
-          search(ldap, :base => connection_config(connection_name)['basedn'], :filter => filter, :attributes => ldap_search_attributes(connection_name), :size => 1) do |entry, connection|
-            return build_user_hash_from_mappings(entry, connection_name, ldap)
-          end
+        each_ldap_connector do |connector|
+          user_hash = connector.fetch_user_hash(identifier, options)
+          return user_hash if user_hash
         end
         nil
       end
@@ -69,8 +55,8 @@ module Socialcast
 
         if @options[:sanity_check]
           puts "Sanity checking users currently marked as needing to be terminated"
-          each_ldap_connection do |connection_name, ldap|
-            attr_mappings = attribute_mappings(connection_name)
+          each_ldap_connector do |connector|
+            attr_mappings = connector.attribute_mappings
             (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
               combined_filters = []
               ['email', 'unique_identifier', 'employee_number'].each_with_index do |identifier, index|
@@ -78,8 +64,8 @@ module Socialcast
               end
               combined_filters.compact!
               filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
-              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connection_config(connection_name)["filter"])
-              ldap_result = ldap.search(:return_result => true, :base => connection_config(connection_name)["basedn"], :filter => filter, :attributes => ldap_search_attributes(connection_name))
+              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connector.connection_config["filter"])
+              ldap_result = connector.ldap.search(:return_result => true, :base => connector.connection_config["basedn"], :filter => filter, :attributes => connector.ldap_search_attributes)
               raise ProvisionError.new "Found user marked for termination that should not be terminated: #{user_identifiers}" unless ldap_result.blank?
             end
           end
@@ -108,52 +94,54 @@ module Socialcast
       def sync_photos
         http_config = @ldap_config.fetch 'http', {}
 
-        @ldap_config["connections"].keys.each do |connection_name|
-          attribute_mappings(connection_name).fetch('profile_photo')
+        each_ldap_connector do |connector|
+          connector.attribute_mappings.fetch('profile_photo')
         end
 
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
 
-        each_ldap_entry do |entry, connection_name, _|
-          attr_mappings = attribute_mappings(connection_name)
-          email = grab(entry, attr_mappings['email'])
-          if profile_photo_data = grab(entry, attr_mappings['profile_photo'])
-            if profile_photo_data.start_with?('http')
-              begin
-                profile_photo_data = RestClient.get(profile_photo_data)
-              rescue => e
-                puts "Unable to download photo #{profile_photo_data} for #{email}"
-                puts e.response
-                next
+        each_ldap_connector do |connector|
+          each_ldap_entry do |entry|
+            attr_mappings = connector.attribute_mappings
+            email = connector.grab(entry, attr_mappings['email'])
+            if profile_photo_data = connector.grab(entry, attr_mappings['profile_photo'])
+              if profile_photo_data.start_with?('http')
+                begin
+                  profile_photo_data = RestClient.get(profile_photo_data)
+                rescue => e
+                  puts "Unable to download photo #{profile_photo_data} for #{email}"
+                  puts e.response
+                  next
+                end
               end
-            end
-            profile_photo_data = profile_photo_data.force_encoding('binary')
+              profile_photo_data = profile_photo_data.force_encoding('binary')
 
-            user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
-            user_info = JSON.parse(user_search_response)['users'].first
-            if user_info && user_info['avatars'] && user_info['avatars']['is_system_default']
-              puts "Uploading photo for #{email}"
+              user_search_response = search_users_resource.get(:params => { :q => email, :per_page => 1 }, :accept => :json)
+              user_info = JSON.parse(user_search_response)['users'].first
+              if user_info && user_info['avatars'] && user_info['avatars']['is_system_default']
+                puts "Uploading photo for #{email}"
 
-              user_resource = Socialcast::CommandLine.resource_for_path "/api/users/#{user_info['id']}", http_config
-              content_type = case profile_photo_data
-              when Regexp.new("\AGIF8", nil, 'n')
-                'gif'
-              when Regexp.new('\A\x89PNG', nil, 'n')
-                'png'
-              when Regexp.new("\A\xff\xd8\xff\xe0\x00\x10JFIF", nil, 'n'), Regexp.new("\A\xff\xd8\xff\xe1(.*){2}Exif", nil, 'n')
-                'jpg'
-              else
-                puts "Skipping photo for #{email}: unknown image format (supports .gif, .png, .jpg)"
-                next
-              end
+                user_resource = Socialcast::CommandLine.resource_for_path "/api/users/#{user_info['id']}", http_config
+                content_type = case profile_photo_data
+                when Regexp.new("\AGIF8", nil, 'n')
+                  'gif'
+                when Regexp.new('\A\x89PNG', nil, 'n')
+                  'png'
+                when Regexp.new("\A\xff\xd8\xff\xe0\x00\x10JFIF", nil, 'n'), Regexp.new("\A\xff\xd8\xff\xe1(.*){2}Exif", nil, 'n')
+                  'jpg'
+                else
+                  puts "Skipping photo for #{email}: unknown image format (supports .gif, .png, .jpg)"
+                  next
+                end
 
-              tempfile = Tempfile.new(["photo_upload", ".#{content_type}"])
-              tempfile.write(profile_photo_data)
-              tempfile.rewind
-              begin
-                user_resource.put({ :user => { :profile_photo => { :data => tempfile } } })
-              ensure
-                tempfile.unlink
+                tempfile = Tempfile.new(["photo_upload", ".#{content_type}"])
+                tempfile.write(profile_photo_data)
+                tempfile.rewind
+                begin
+                  user_resource.put({ :user => { :profile_photo => { :data => tempfile } } })
+                ensure
+                  tempfile.unlink
+                end
               end
             end
           end
@@ -162,143 +150,33 @@ module Socialcast
 
       private
 
-      def connection_config(connection_name)
-        @ldap_config['connections'][connection_name]
+      def ldap_connector(connection_name)
+        @connectors ||= {}
+
+        unless @connectors[connection_name]
+          @connectors[connection_name] = Socialcast::CommandLine::LDAP::Connector.new(connection_name, @ldap_config)
+        end
+
+        @connectors[connection_name]
       end
 
-      def dereference_mail(entry, ldap, dn_field, mail_attribute)
-        dn = grab(entry, dn_field)
-        ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
-          return grab(manager_entry, mail_attribute)
+      def each_ldap_connector
+        @ldap_config['connections'].keys.each do |connection_name|
+          yield ldap_connector(connection_name)
         end
-      end
-
-      def search(ldap, search_options)
-        options_for_search = if search_options[:base].present?
-                               Array.wrap(search_options)
-                             else
-                               distinguished_names = Array.wrap(ldap.search_root_dse.namingcontexts)
-                               options_for_search = distinguished_names.map { |dn| search_options.merge(:base => dn ) }
-                             end
-
-        options_for_search.each do |options|
-          ldap.search(options) do |entry|
-            yield(entry)
-          end
-        end
-      end
-
-      def build_user_hash_from_mappings(entry, connection_name, ldap)
-        user_hash = HashWithIndifferentAccess.new
-        primary_attributes = %w{unique_identifier first_name last_name employee_number}
-        attr_mappings = attribute_mappings(connection_name)
-        perm_mappings = permission_mappings(connection_name)
-        primary_attributes.each do |attribute|
-          next unless attr_mappings.has_key?(attribute)
-          user_hash[attribute] = grab(entry, attr_mappings[attribute])
-        end
-
-        contact_attributes = %w{email location cell_phone office_phone}
-        user_hash['contact_info'] = {}
-        contact_attributes.each do |attribute|
-          next unless attr_mappings.has_key?(attribute)
-          user_hash['contact_info'][attribute] = grab(entry, attr_mappings[attribute])
-        end
-
-        custom_attributes = attr_mappings.keys - (primary_attributes + contact_attributes)
-
-        user_hash['custom_fields'] = []
-        custom_attributes.each do |attribute|
-          if attribute == 'manager'
-            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, ldap, attr_mappings[attribute], attr_mappings['email']) }
-          else
-            user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attr_mappings[attribute]) }
-          end
-        end
-
-        membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
-        memberships = entry[membership_attribute]
-        external_ldap_groups = Array.wrap(perm_mappings.fetch('account_types', {})['external'])
-        if external_ldap_groups.any? { |external_ldap_group| memberships.include?(external_ldap_group) }
-          user_hash['account_type'] = 'external'
-        else
-          user_hash['account_type'] = 'member'
-          if permission_roles_mappings = perm_mappings['roles']
-            user_hash['roles'] = []
-            permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
-              Array.wrap(ldap_groups).each do |ldap_group|
-                if memberships.include?(ldap_group)
-                  user_hash['roles'] << socialcast_role
-                  break
-                end
-              end
-            end
-          end
-        end
-
-        user_hash
       end
 
       def each_ldap_entry(&block)
         count = 0
 
-        each_ldap_connection do |connection_name, ldap|
-          attr_mappings = attribute_mappings(connection_name)
-          search(ldap, :return_result => false, :filter => connection_config(connection_name)["filter"], :base => connection_config(connection_name)["basedn"], :attributes => ldap_search_attributes(connection_name)) do |entry|
-            if grab(entry, attr_mappings["email"]).present? || (attr_mappings.has_key?("unique_identifier") && grab(entry, attr_mappings["unique_identifier"]).present?)
-              yield entry, connection_name, ldap
-            end
-
+        each_ldap_connector do |connector|
+          connector.each_ldap_entry do |entry|
+            yield entry, connector.connection_name
             count += 1
             puts "Scanned #{count} users" if ((count % 100) == 0)
           end
         end
         puts "Finished scanning #{count} users"
-      end
-
-      def each_ldap_connection
-        @ldap_config["connections"].each_pair do |connection_name, connection_config|
-          puts "Connecting to #{connection_name} at #{[connection_config["host"], connection_config["port"]].join(':')} with base DN #{connection_config['basedn']} and filter #{connection_config['filter']}"
-          ldap = create_ldap_instance(connection_config)
-          yield connection_name, ldap
-        end
-      end
-
-      def create_ldap_instance(connection_config)
-        ldap = Net::LDAP.new :host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]
-        ldap.encryption connection_config['encryption'].to_sym if connection_config['encryption']
-        ldap.auth connection_config["username"], connection_config["password"]
-        ldap
-      end
-
-      def ldap_search_attributes(connection_name)
-        attr_mappings = attribute_mappings(connection_name)
-        perm_mappings = permission_mappings(connection_name)
-
-        membership_attribute = perm_mappings.fetch 'attribute_name', 'memberof'
-        attributes = attr_mappings.values.map do |mapping_value|
-          value = begin
-            mapping_value.camelize.constantize
-          rescue NameError
-            mapping_value
-          end
-
-          case value
-          when Hash
-            dup_mapping_value = value.dup
-            dup_mapping_value.delete("value")
-            dup_mapping_value.values
-          when String
-            value
-          when Class, Module
-            if value.respond_to?(:attributes)
-              value.attributes
-            else
-              mapping_value
-            end
-          end
-        end.flatten
-        attributes << membership_attribute
       end
 
       def current_socialcast_users(http_config)
@@ -323,57 +201,6 @@ module Socialcast
       def create_socialcast_user_index_request(http_config, request_params)
         path_template = "/api/users?per_page=%{per_page}&page=%{page}"
         Socialcast::CommandLine.resource_for_path((path_template % request_params), http_config)
-      end
-
-      def attribute_mappings(connection_name)
-        @attribute_mappings ||= {}
-
-        unless @attribute_mappings[connection_name]
-          @attribute_mappings[connection_name] = @ldap_config['connections'][connection_name].fetch 'mappings', nil
-          @attribute_mappings[connection_name] ||= @ldap_config.fetch 'mappings', {}
-        end
-
-        @attribute_mappings[connection_name]
-      end
-
-      def permission_mappings(connection_name)
-        @permission_mappings ||= {}
-
-        unless @permission_mappings[connection_name]
-          @permission_mappings[connection_name] = @ldap_config['connections'][connection_name].fetch 'permission_mappings', nil
-          @permission_mappings[connection_name] ||= @ldap_config.fetch 'permission_mappings', {}
-        end
-
-        @permission_mappings[connection_name]
-      end
-
-      # grab a *single* value of an attribute
-      # abstracts away ldap multivalue attributes
-      def grab(entry, attribute)
-        const_attribute = begin
-          attribute.camelize.constantize
-        rescue NameError
-          attribute
-        end
-
-        case const_attribute
-        when Hash
-          dup_attribute = const_attribute.dup
-          value = dup_attribute.delete("value")
-          sprintf value, Hash[dup_attribute.map { |k, v| [k, grab(entry, v)] }].symbolize_keys
-        when String
-          normalize_ldap_value(entry, attribute)
-        when Class, Module
-          if const_attribute.respond_to?(:run)
-            const_attribute.run(entry)
-          else
-            normalize_ldap_value(entry, attribute)
-          end
-        end
-      end
-
-      def normalize_ldap_value(entry, attribute)
-        Array.wrap(entry[attribute]).compact.first
       end
     end
   end
