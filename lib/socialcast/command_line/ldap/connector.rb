@@ -6,6 +6,9 @@ module Socialcast
   module CommandLine
     module LDAP
       class Connector
+        PRIMARY_ATTRIBUTES = %w{unique_identifier first_name last_name employee_number}
+        CONTACT_ATTRIBUTES = %w{email location cell_phone office_phone}
+
         attr_reader :attribute_mappings, :connection_name
 
         def initialize(connection_name, config)
@@ -147,22 +150,23 @@ module Socialcast
           end
         end
 
-        def build_user_hash_from_mappings(entry)
-          user_hash = HashWithIndifferentAccess.new
-          primary_attributes = %w{unique_identifier first_name last_name employee_number}
-          primary_attributes.each do |attribute|
+        def add_primary_attributes(entry, user_hash)
+          PRIMARY_ATTRIBUTES.each do |attribute|
             next unless attribute_mappings.has_key?(attribute)
             user_hash[attribute] = grab(entry, attribute_mappings[attribute])
           end
+        end
 
-          contact_attributes = %w{email location cell_phone office_phone}
+        def add_contact_attributes(entry, user_hash)
           user_hash['contact_info'] = {}
-          contact_attributes.each do |attribute|
+          CONTACT_ATTRIBUTES.each do |attribute|
             next unless attribute_mappings.has_key?(attribute)
             user_hash['contact_info'][attribute] = grab(entry, attribute_mappings[attribute])
           end
+        end
 
-          custom_attributes = attribute_mappings.keys - (primary_attributes + contact_attributes)
+        def add_custom_attributes(entry, user_hash)
+          custom_attributes = attribute_mappings.keys - (PRIMARY_ATTRIBUTES + CONTACT_ATTRIBUTES)
 
           user_hash['custom_fields'] = []
           custom_attributes.each do |attribute|
@@ -172,7 +176,9 @@ module Socialcast
               user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attribute_mappings[attribute]) }
             end
           end
+        end
 
+        def add_account_type(entry, user_hash)
           membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
           memberships = entry[membership_attribute]
           external_ldap_groups = Array.wrap(permission_mappings.fetch('account_types', {})['external'])
@@ -180,18 +186,33 @@ module Socialcast
             user_hash['account_type'] = 'external'
           else
             user_hash['account_type'] = 'member'
-            if permission_roles_mappings = permission_mappings['roles']
-              user_hash['roles'] = []
-              permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
-                Array.wrap(ldap_groups).each do |ldap_group|
-                  if memberships.include?(ldap_group)
-                    user_hash['roles'] << socialcast_role
-                    break
-                  end
+          end
+        end
+
+        def add_roles(entry, user_hash)
+          membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
+          memberships = entry[membership_attribute]
+          if permission_roles_mappings = permission_mappings['roles']
+            user_hash['roles'] = []
+            permission_roles_mappings.each_pair do |socialcast_role, ldap_groups|
+              Array.wrap(ldap_groups).each do |ldap_group|
+                if memberships.include?(ldap_group)
+                  user_hash['roles'] << socialcast_role
+                  break
                 end
               end
             end
           end
+        end
+
+        def build_user_hash_from_mappings(entry)
+          user_hash = HashWithIndifferentAccess.new
+
+          add_primary_attributes(entry, user_hash)
+          add_contact_attributes(entry, user_hash)
+          add_custom_attributes(entry, user_hash)
+          add_account_type(entry, user_hash)
+          add_roles(entry, user_hash) if user_hash['account_type'] == 'member'
 
           user_hash
         end
