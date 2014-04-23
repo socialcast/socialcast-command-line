@@ -5,8 +5,10 @@ require 'active_support/core_ext/array/wrap'
 module Socialcast
   module CommandLine
     class LDAPConnector
-      PRIMARY_ATTRIBUTES = %w{unique_identifier first_name last_name employee_number}
-      CONTACT_ATTRIBUTES = %w{email location cell_phone office_phone}
+      UNIQUE_IDENTIFIER = "unique_identifier"
+      EMAIL = "email"
+      PRIMARY_ATTRIBUTES = [UNIQUE_IDENTIFIER, 'first_name', 'last_name', 'employee_number']
+      CONTACT_ATTRIBUTES = [EMAIL, 'location', 'cell_phone', 'office_phone']
 
       attr_reader :attribute_mappings, :connection_name
 
@@ -23,7 +25,7 @@ module Socialcast
 
       def each_ldap_entry
         search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => ldap_search_attributes) do |entry|
-          if grab(entry, attribute_mappings["email"]).present? || (attribute_mappings.has_key?("unique_identifier") && grab(entry, attribute_mappings["unique_identifier"]).present?)
+          if grab(entry, attribute_mappings[EMAIL]).present? || (attribute_mappings.has_key?(UNIQUE_IDENTIFIER) && grab(entry, attribute_mappings[UNIQUE_IDENTIFIER]).present?)
             yield entry
           end
         end
@@ -31,7 +33,7 @@ module Socialcast
 
       def fetch_user_hash(identifier, options)
         options = options.dup
-        identifying_field = options.delete(:identifying_field) || 'unique_identifier'
+        identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER
 
         filter = if connection_config['filter'].present?
                    Net::LDAP::Filter.construct(connection_config['filter'])
@@ -160,11 +162,11 @@ module Socialcast
             :return_result => false,
             :filter => group_membership_mappings["filter"],
             :base => connection_config["basedn"],
-            :attributes => [group_membership_mappings["unique_identifier"]]
+            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER]]
           }
 
           search(search_options) do |entry|
-            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings["unique_identifier"])
+            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER])
           end
         end
       end
@@ -190,7 +192,7 @@ module Socialcast
         user_hash['custom_fields'] = []
         custom_attributes.each do |attribute|
           if attribute == 'manager'
-            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, attribute_mappings[attribute], attribute_mappings['email']) }
+            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, attribute_mappings[attribute], attribute_mappings[EMAIL]) }
           else
             user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attribute_mappings[attribute]) }
           end
