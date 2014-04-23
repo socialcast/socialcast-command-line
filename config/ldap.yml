@@ -73,13 +73,6 @@ permission_mappings:
 
   # Role search definitions need to be EXACT matches to the output from your LDAP server.
 
-# Map LDAP Group Memberships to Socialcast Group Memberships
-group_membership_mappings:
-  # configure a filter and a mapping to a unique identifier
-  # Example:
-  # filter: "(objectClass=groupOfUniqueNames)"
-  # unique_identifier: dn
-
 
 # general script options
 options:
