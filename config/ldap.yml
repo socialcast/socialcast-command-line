@@ -73,7 +73,6 @@ permission_mappings:
 
   # Role search definitions need to be EXACT matches to the output from your LDAP server.
 
-
 # general script options
 options:
   # cleanup the extracted ldap data file after run is complete
