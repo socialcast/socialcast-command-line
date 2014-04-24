@@ -1,5 +1,6 @@
 require 'yaml'
 require 'fileutils'
+require 'socialcast/command_line/provision'
 
 module Socialcast
   module CommandLine
