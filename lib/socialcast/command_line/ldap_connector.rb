@@ -145,8 +145,7 @@ module Socialcast
       end
 
       def group_membership_mappings
-        @group_membership_mappings ||= connection_config.fetch 'group_membership_mappings', nil
-        @group_membership_mappings ||= @config.fetch 'group_membership_mappings', {}
+        permission_mappings.fetch 'group_memberships', nil
       end
 
       def dereference_mail(entry, dn_field, mail_attribute)
