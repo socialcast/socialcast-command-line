@@ -78,7 +78,7 @@ module Socialcast
       end
 
       def attribute_mappings
-        @attribute_mappings ||= connection_config.fetch 'mappings', nil
+        @attribute_mappings ||= connection_config['mappings']
         @attribute_mappings ||= @config.fetch 'mappings', {}
       end
 
@@ -140,12 +140,12 @@ module Socialcast
       end
 
       def permission_mappings
-        @permission_mappings ||= connection_config.fetch 'permission_mappings', nil
+        @permission_mappings ||= connection_config['permission_mappings']
         @permission_mappings ||= @config.fetch 'permission_mappings', {}
       end
 
       def group_membership_mappings
-        permission_mappings.fetch 'group_memberships', nil
+        permission_mappings['group_memberships']
       end
 
       def dereference_mail(entry, dn_field, mail_attribute)
