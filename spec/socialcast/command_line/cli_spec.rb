@@ -497,36 +497,5 @@ describe Socialcast::CommandLine::CLI do
         @result.should =~ /<label>manager_email<\/label>\s*<value>bossman@example.com<\/value>/
       end
     end
-
-    context "with a user marked for termination that shouldn't be and sanity_check option passed" do
-      before do
-        @entry = Net::LDAP::Entry.new("cn=Ryan,dc=example,dc=com")
-        @entry[:mail] = 'ryan@example.com'
-        @valid_entry = Net::LDAP::Entry.new("cn=Sean,dc=example,dc=com")
-        @valid_entry[:mail] = 'sean@example.com'
-        ldap_search_block = double("ldapsearchblock")
-        ldap_search_block.should_receive(:search).and_yield(@entry)
-        ldap_return = double("ldapreturn")
-        ldap_return.should_receive(:search).with(include(:filter => Net::LDAP::Filter.construct("(&(mail=sean@example.com)(mail=*))"))).and_return(@valid_entry)
-
-        Socialcast::CommandLine::LDAPConnector.any_instance.should_receive(:ldap).and_return(ldap_search_block, ldap_return)
-
-        @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-
-        Socialcast::CommandLine::Provision.any_instance.should_receive(:create_socialcast_user_index_request).and_return(
-          double("request1", :get => {"users" => [{"contact_info" => {"email" => @entry[:mail][0]}}]}.to_json),
-          double("request2", :get => {"users" => [{"contact_info" => {"email" => @valid_entry[:mail][0]}}]}.to_json),
-          double("empty_request", :get => {"users" => []}.to_json)
-        )
-
-        RestClient::Resource.any_instance.should_receive(:post).never
-      end
-      it 'does not post to Socialcast and throws Kernel.abort' do
-        lambda { Socialcast::CommandLine::CLI.start ['provision', '--sanity_check', true] }.should raise_error SystemExit
-      end
-    end
   end
 end

@@ -104,7 +104,6 @@ module Socialcast
       method_option :test, :type => :boolean, :desc => 'Do not persist changes'
       method_option :skip_emails, :type => :boolean, :desc => 'Do not send signup emails to users'
       method_option :force, :type => :boolean, :aliases => '-f', :default => false, :desc => 'Proceed with provisioning even if no users are found, which would deactivate all users in the community'
-      method_option :sanity_check, :type => :boolean, :default => false, :desc => 'Double check that users marked for termination really no longer exist'
       method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file"
       def provision
         config = ldap_config options

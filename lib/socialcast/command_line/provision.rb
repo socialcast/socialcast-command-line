@@ -52,24 +52,6 @@ module Socialcast
           end # export
         end # gzip
 
-        if @options[:sanity_check]
-          puts "Sanity checking users currently marked as needing to be terminated"
-          each_ldap_connector do |connector|
-            attr_mappings = connector.attribute_mappings
-            (current_socialcast_users(http_config) - user_whitelist).each do |user_identifiers|
-              combined_filters = []
-              ['email', 'unique_identifier', 'employee_number'].each_with_index do |identifier, index|
-                combined_filters << ((attr_mappings[identifier].blank? || user_identifiers[index].nil?) ? nil : Net::LDAP::Filter.eq(attr_mappings[identifier], user_identifiers[index]))
-              end
-              combined_filters.compact!
-              filter = ((combined_filters.size > 1) ? '(|%s)' : '%s') % combined_filters.join(' ')
-              filter = Net::LDAP::Filter.construct(filter) & Net::LDAP::Filter.construct(connector.connection_config["filter"])
-              ldap_result = connector.ldap.search(:return_result => true, :base => connector.connection_config["basedn"], :filter => filter, :attributes => connector.ldap_search_attributes)
-              raise ProvisionError.new "Found user marked for termination that should not be terminated: #{user_identifiers}" unless ldap_result.blank?
-            end
-          end
-        end
-
         if user_whitelist.empty? && !@options[:force]
           raise ProvisionError.new "Skipping upload to Socialcast since no users were found"
         else
@@ -176,30 +158,6 @@ module Socialcast
           end
         end
         puts "Finished scanning #{count} users"
-      end
-
-      def current_socialcast_users(http_config)
-        current_socialcast_list = Set.new
-        request_params = {:per_page => 500}
-        request_params[:page] = 1
-        resource = create_socialcast_user_index_request(http_config, request_params)
-        loop do
-          response = resource.get :accept => :json
-          result = JSON.parse(response)
-          users = result["users"]
-          break if users.blank?
-          request_params[:page] += 1
-          resource = create_socialcast_user_index_request(http_config, request_params)
-          users.each do |user|
-            current_socialcast_list << [user['contact_info']['email'], user['company_login'], user['employee_number']]
-          end
-        end
-        current_socialcast_list
-      end
-
-      def create_socialcast_user_index_request(http_config, request_params)
-        path_template = "/api/users?per_page=%{per_page}&page=%{page}"
-        Socialcast::CommandLine.resource_for_path((path_template % request_params), http_config)
       end
     end
   end
