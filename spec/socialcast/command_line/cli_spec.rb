@@ -16,6 +16,24 @@ describe Socialcast::CommandLine::CLI do
     Socialcast::CommandLine.stub(:credentials).and_return(credentials)
   end
 
+  describe '#info' do
+    before do
+      Socialcast::CommandLine::CLI.any_instance.should_receive(:say).with("Socialcast Command Line #{Socialcast::CommandLine::VERSION}")
+    end
+    context '--version' do
+      before do
+        Socialcast::CommandLine::CLI.start ["--version"]
+      end
+      it "prints the version" do end
+    end
+    context '-v' do
+      before do
+        Socialcast::CommandLine::CLI.start ["-v"]
+      end
+      it "prints the version" do end
+    end
+  end
+
   describe '#share' do
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
