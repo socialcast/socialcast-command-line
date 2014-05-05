@@ -1,1 +1,1 @@
-rvm use ruby-1.9.3-p545@socialcast-command-line --create
+rvm use ruby-2.1.1@socialcast-command-line --create
