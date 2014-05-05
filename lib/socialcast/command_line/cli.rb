@@ -6,9 +6,6 @@ require "thor"
 require 'json'
 require 'rest_client'
 require 'highline'
-require 'socialcast'
-require 'socialcast/command_line/message'
-require 'socialcast/command_line/provision'
 
 require 'logger'
 require 'fileutils'
@@ -32,8 +29,17 @@ module Socialcast
     class CLI < Thor
       include Thor::Actions
 
-      method_option :trace, :type => :boolean, :aliases => '-v'
+      method_option :trace, :type => :boolean, :aliases => '-t'
       def initialize(*args); super; end
+
+      desc "info", "Information about the socialcast command"
+      method_option :version, :type => :string, :aliases => '-v', :description => 'print the version number and exit'
+      def info
+        if options["version"]
+          say "Socialcast Command Line #{Socialcast::CommandLine::VERSION}"
+        end
+      end
+      default_task :info
 
       desc "authenticate", "Authenticate using your Socialcast credentials"
       method_option :user, :type => :string, :aliases => '-u', :desc => 'email address for the authenticated user'

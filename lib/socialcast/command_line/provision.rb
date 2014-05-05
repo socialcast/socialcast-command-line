@@ -2,7 +2,6 @@ require 'zlib'
 require 'builder'
 require 'set'
 require 'fileutils'
-require 'socialcast/command_line/ldap_connector'
 
 module Socialcast
   module CommandLine

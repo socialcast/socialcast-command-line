@@ -5,7 +5,7 @@ require 'rspec/mocks'
 require 'pry'
 RSpec::Mocks::setup(Object.new)
 
-require 'socialcast/command_line/cli'
+require_relative '../lib/socialcast'
 
 RSpec.configure do |config|
   config.mock_with :rspec
