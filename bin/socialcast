@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-$:.unshift(File.expand_path('../../lib', __FILE__))
-require 'socialcast/command_line/cli'
+require_relative '../lib/socialcast'
 
 Socialcast::CommandLine::CLI.start

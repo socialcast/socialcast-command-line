@@ -1,6 +1,11 @@
 require 'yaml'
 require 'fileutils'
-require 'socialcast/command_line/provision'
+
+require_relative 'socialcast/command_line/ldap_connector'
+require_relative 'socialcast/command_line/provision'
+require_relative 'socialcast/command_line/message'
+require_relative 'socialcast/command_line/cli'
+require_relative 'socialcast/command_line/version'
 
 module Socialcast
   module CommandLine
