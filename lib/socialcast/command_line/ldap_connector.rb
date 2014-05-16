@@ -50,33 +50,6 @@ module Socialcast
         nil
       end
 
-      def ldap_search_attributes
-        membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
-        attributes = attribute_mappings.values.map do |mapping_value|
-          value = begin
-            mapping_value.camelize.constantize
-          rescue NameError
-            mapping_value
-          end
-
-          case value
-          when Hash
-            dup_mapping_value = value.dup
-            dup_mapping_value.delete("value")
-            dup_mapping_value.values
-          when String
-            value
-          when Class, Module
-            if value.respond_to?(:attributes)
-              value.attributes
-            else
-              mapping_value
-            end
-          end
-        end.flatten
-        attributes << membership_attribute
-      end
-
       def attribute_mappings
         @attribute_mappings ||= connection_config['mappings']
         @attribute_mappings ||= @config.fetch 'mappings', {}
@@ -107,11 +80,39 @@ module Socialcast
         end
       end
 
+      private
+
       def connection_config
         @config["connections"][connection_name]
       end
 
-      private
+      def ldap_search_attributes
+        membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
+        attributes = attribute_mappings.values.map do |mapping_value|
+          value = begin
+            mapping_value.camelize.constantize
+          rescue NameError
+            mapping_value
+          end
+
+          case value
+          when Hash
+            dup_mapping_value = value.dup
+            dup_mapping_value.delete("value")
+            dup_mapping_value.values
+          when String
+            value
+          when Class, Module
+            if value.respond_to?(:attributes)
+              value.attributes
+            else
+              mapping_value
+            end
+          end
+        end.flatten
+        attributes << membership_attribute
+      end
+
 
       def ldap
         @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
