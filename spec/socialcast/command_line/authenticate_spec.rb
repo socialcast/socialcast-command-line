@@ -14,12 +14,14 @@ describe Socialcast::CommandLine::Authenticate do
     context 'for a regular user' do
       let(:authenticate_type) { :user }
       let(:url) { "https://test.socialcast.local/api/authentication" }
+      # See expectations
       it 'hits the API to try authentication for a regular user' do end
     end
 
     context 'for an external system' do
       let(:url) { "https://test.socialcast.local/api/external_systems/authentication" }
       let(:authenticate_type) { :external_system }
+      # See expectations
       it 'hits the API to try authentication for an external system' do end
     end
   end

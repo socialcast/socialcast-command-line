@@ -34,6 +34,51 @@ describe Socialcast::CommandLine::CLI do
     end
   end
 
+  describe '#authenticate' do
+    let(:user) { 'mike@socialcast.com' }
+    let(:password) { 'password' }
+    let(:domain) { 'api.socialcast.com' }
+    before do
+      Socialcast::CommandLine.should_receive(:credentials=).with({
+        :domain => 'api.socialcast.com',
+        :proxy => nil
+      })
+      Socialcast::CommandLine.should_receive(:credentials=).with({
+        :user => user,
+        :password => password,
+        :domain => domain
+      })
+      stub_request(:post, "https://api.socialcast.com/api/authentication").
+         with(:body => {"email"=>"mike@socialcast.com", "password"=>"password"}).
+         to_return(:status => 200, :body => { :communities => [{ :domain => domain }] }.to_json, :headers => {})
+      Socialcast::CommandLine::CLI.start ['authenticate', "--user=#{user}", "--password=#{password}"]
+    end
+    ## See expectations
+    it 'authenticates with the API and sets the given credentials' do end
+  end
+
+  describe '#authenticate_external_system' do
+    let(:api_client_identifier) { 'my-client-id' }
+    let(:api_client_secret) { 'my-client-secret' }
+    let(:domain) { 'api.socialcast.com' }
+    before do
+      Socialcast::CommandLine.should_receive(:credentials=).with({
+        :domain => 'api.socialcast.com',
+        :proxy => nil
+      })
+      Socialcast::CommandLine.should_receive(:credentials=).with({
+        :api_client_identifier => api_client_identifier,
+        :api_client_secret => api_client_secret,
+      })
+      stub_request(:post, "https://api.socialcast.com/api/external_systems/authentication").
+         with(:body => { "external_system" => { "api_client_identifier" => api_client_identifier, "api_client_secret" => api_client_secret } }).
+         to_return(:status => 200, :body => "", :headers => {})
+      Socialcast::CommandLine::CLI.start ['authenticate_external_system', "--api_client_identifier=#{api_client_identifier}", "--api_client_secret=#{api_client_secret}"]
+    end
+    ## See expectations
+    it 'authenticates with the API and sets the given credentials for an authenticated system' do end
+  end
+
   describe '#share' do
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
@@ -252,9 +297,9 @@ describe Socialcast::CommandLine::CLI do
 
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
         rest_client_resource = double(:rest_client_resource)
-        rest_client_resource.stub(:post).and_raise(RestClient::Unauthorized.new(mock('Unauthorized HTTP Response', :code => '401')))
+        rest_client_resource.stub(:post).and_raise(RestClient::Unauthorized.new(double('Unauthorized HTTP Response', :code => '401', :body => 'Unauthorized HTTP Response')))
         Socialcast::CommandLine.stub(:resource_for_path).and_return(rest_client_resource)
-        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.").once
+        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning.: Unauthorized HTTP Response. Please contact Socialcast support to if you need help.").once
 
         Socialcast::CommandLine::CLI.start ['provision', '-f']
       end
