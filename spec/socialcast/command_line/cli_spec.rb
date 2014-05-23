@@ -117,7 +117,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => system_default_photo
+                'is_community_default' => system_default_photo
               }
             }
           ]
@@ -154,7 +154,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => system_default_photo
+                'is_community_default' => system_default_photo
               }
             }
           ]
@@ -187,7 +187,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => system_default_photo
+                'is_community_default' => system_default_photo
               }
             }
           ]

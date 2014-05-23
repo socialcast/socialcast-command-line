@@ -98,7 +98,7 @@ module Socialcast
 
       desc 'provision', 'provision users from ldap compatible user repository'
       method_option :config, :default => 'ldap.yml', :aliases => '-c', :desc => 'Path to ldap config file'
-      method_option :output, :default => Socialcast::CommandLine::Provision::DEFAULT_OUTPUT_FILE, :aliases => '-o', :desc => 'Name of the output file'
+      method_option :output, :default => Socialcast::CommandLine::ProvisionUser::DEFAULT_OUTPUT_FILE, :aliases => '-o', :desc => 'Name of the output file'
       method_option :setup, :type => :boolean, :desc => 'Create an example ldap config file and exit'
       method_option :delete_users_file, :type => :boolean, :desc => 'Delete the output file'
       method_option :test, :type => :boolean, :desc => 'Do not persist changes'
@@ -109,18 +109,19 @@ module Socialcast
         config = ldap_config options
         load_plugins options
 
-        Socialcast::CommandLine::Provision.new(config, options).provision
+        Socialcast::CommandLine::ProvisionUser.new(config, options).provision
 
-      rescue Socialcast::CommandLine::Provision::ProvisionError => e
+      rescue Socialcast::CommandLine::ProvisionUser::ProvisionError => e
         Kernel.abort e.message
       end
 
       desc 'sync_photos', 'Upload default avatar photos from LDAP repository'
       method_option :config, :default => 'ldap.yml', :aliases => '-c'
+      method_option :force_sync, :default => false, :aliases => '-f', :desc => 'Pushes all photos from LDAP to socialcast'
       def sync_photos
         config = ldap_config options
 
-        Socialcast::CommandLine::Provision.new(config).sync_photos
+        Socialcast::CommandLine::ProvisionPhoto.new(config, options).sync
       end
 
       no_tasks do
