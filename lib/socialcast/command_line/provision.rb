@@ -67,7 +67,7 @@ module Socialcast
           rescue RestClient::Unauthorized => e
             error_message = @options[:external_system] ? "External Provisioning System was not found." : "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning."
             contact_message = "Please contact Socialcast support to if you need help."
-            raise ProvisionError.new "#{error_message}: #{e.response.body}. #{contact_message}" if e.http_code == 401
+            raise ProvisionError.new "#{error_message} #{contact_message}\nResponse from server: #{e.response.body}" if e.http_code == 401
           end
           puts "Finished"
         end
