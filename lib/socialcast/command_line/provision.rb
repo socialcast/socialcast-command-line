@@ -76,7 +76,7 @@ module Socialcast
         http_config = @ldap_config.fetch 'http', {}
 
         each_ldap_connector do |connector|
-          connector.attribute_mappings.fetch('profile_photo')
+          connector.attribute_mappings.fetch(Socialcast::CommandLine::LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
         end
 
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
@@ -85,7 +85,7 @@ module Socialcast
           each_ldap_entry do |entry|
             attr_mappings = connector.attribute_mappings
             email = connector.grab(entry, attr_mappings['email'])
-            if profile_photo_data = connector.grab(entry, attr_mappings['profile_photo'])
+            if profile_photo_data = connector.grab(entry, attr_mappings[Socialcast::CommandLine::LDAPConnector::PROFILE_PHOTO_ATTRIBUTE])
               if profile_photo_data.start_with?('http')
                 begin
                   profile_photo_data = RestClient.get(profile_photo_data)

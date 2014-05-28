@@ -9,6 +9,7 @@ module Socialcast
       EMAIL = "email"
       PRIMARY_ATTRIBUTES = [UNIQUE_IDENTIFIER, 'first_name', 'last_name', 'employee_number']
       CONTACT_ATTRIBUTES = [EMAIL, 'location', 'cell_phone', 'office_phone']
+      PROFILE_PHOTO_ATTRIBUTE = 'profile_photo'
 
       attr_reader :attribute_mappings, :connection_name
 
@@ -187,7 +188,7 @@ module Socialcast
       end
 
       def add_custom_attributes(entry, user_hash)
-        custom_attributes = attribute_mappings.keys - (PRIMARY_ATTRIBUTES + CONTACT_ATTRIBUTES)
+        custom_attributes = attribute_mappings.keys - (PRIMARY_ATTRIBUTES + CONTACT_ATTRIBUTES + [PROFILE_PHOTO_ATTRIBUTE])
 
         user_hash['custom_fields'] = []
         custom_attributes.each do |attribute|

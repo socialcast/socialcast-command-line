@@ -13,7 +13,7 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_with_manager_attribute_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_manager_attribute.yml')) }
   let!(:ldap_with_roles_without_account_type_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_roles_without_account_type.yml')) }
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
-  let!(:ldap_with_profile_photo) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
+  let!(:ldap_with_profile_photo_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
   let!(:ldap_without_options_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_options.yml')) }
 
@@ -238,6 +238,23 @@ describe Socialcast::CommandLine::Provision do
         it_behaves_like "attributes are mapped properly"
       end
 
+      context "with profile_photo attribute mappings" do
+        before do
+          entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => 'photo'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
+
+          Socialcast::CommandLine::Provision.new(ldap_with_profile_photo_config, {}).provision
+        end
+        let(:expected_attribute_xml) do
+          %Q[<first-name>first name</first-name>
+             <last-name>last name</last-name>
+             <contact-info>
+               <email>user@example.com</email>
+             </contact-info>
+             <custom-fields type="array"/>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
     end
     context "permission attribute mappings" do
       shared_examples "permission attributes are mapped properly" do
@@ -508,7 +525,7 @@ describe Socialcast::CommandLine::Provision do
 
       Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
     end
-    let(:sync_photos) { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo, {}).sync_photos }
+    let(:sync_photos) { Socialcast::CommandLine::Provision.new(ldap_with_profile_photo_config, {}).sync_photos }
 
     context 'for when it does successfully post the photo' do
       before do
@@ -551,7 +568,5 @@ describe Socialcast::CommandLine::Provision do
         it 'tries to download the image from the web and rescues 404' do end
       end
     end
-
   end
-
 end
