@@ -15,6 +15,7 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_with_unique_identifier_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_unique_identifier.yml')) }
   let!(:ldap_with_profile_photo) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
+  let!(:ldap_without_options_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_options.yml')) }
 
   def create_entry(entry_attributes)
     Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
@@ -218,6 +219,25 @@ describe Socialcast::CommandLine::Provision do
         end
         it_behaves_like "attributes are mapped properly"
       end
+
+      context "without options specified" do
+        before do
+          entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+
+          Socialcast::CommandLine::Provision.new(ldap_without_options_config, {}).provision
+        end
+        let(:expected_attribute_xml) do
+          %Q[<first-name>first name</first-name>
+              <last-name>last name</last-name>
+              <contact-info>
+               <email>user@example.com</email>
+              </contact-info>
+              <custom-fields type="array"/>]
+        end
+        it_behaves_like "attributes are mapped properly"
+      end
+
     end
     context "permission attribute mappings" do
       shared_examples "permission attributes are mapped properly" do

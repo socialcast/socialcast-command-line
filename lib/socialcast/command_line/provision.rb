@@ -60,8 +60,8 @@ module Socialcast
           begin
             File.open(output_file, 'r') do |file|
               request_params = {:file => file}
-              request_params[:skip_emails] = 'true' if (@ldap_config['options']["skip_emails"] || @options[:skip_emails])
-              request_params[:test] = 'true' if (@ldap_config['options']["test"] || @options[:test])
+              request_params[:skip_emails] = 'true' if (@ldap_config.fetch('options', {})["skip_emails"] || @options[:skip_emails])
+              request_params[:test] = 'true' if (@ldap_config.fetch('options', {})["test"] || @options[:test])
               resource.post request_params, :accept => :json
             end
           rescue RestClient::Unauthorized => e
@@ -69,7 +69,7 @@ module Socialcast
           end
           puts "Finished"
         end
-        File.delete(output_file) if (@ldap_config['options']['delete_users_file'] || @options[:delete_users_file])
+        File.delete(output_file) if (@ldap_config.fetch('options', {})['delete_users_file'] || @options[:delete_users_file])
       end
 
       def sync_photos
