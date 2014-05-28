@@ -72,14 +72,13 @@ module Socialcast
         api_client_identifier = options[:api_client_identifier] || ask("Socialcast external system identifier: ")
         api_client_secret = options[:api_client_secret] || ask("Socialcast external system API secret: ")
 
-        params = {
-          :external_system => {
-            :api_client_identifier => api_client_identifier,
-            :api_client_secret => api_client_secret
+        headers = {
+          :headers => {
+            :Authorization => "SocialcastApiClient #{api_client_identifier}:#{api_client_secret}"
           }
         }
 
-        Socialcast::CommandLine::Authenticate.new(:external_system, options, params).request
+        Socialcast::CommandLine::Authenticate.new(:external_system, options, {}, headers).request
 
         Socialcast::CommandLine.credentials = {
           :api_client_identifier => api_client_identifier,

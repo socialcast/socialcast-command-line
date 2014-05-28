@@ -1,12 +1,13 @@
 module Socialcast
   module CommandLine
     class Authenticate
-      attr_accessor :authenticate_type, :options, :params
+      attr_accessor :authenticate_type, :options, :params, :headers
 
-      def initialize(authenticate_type, options, params)
+      def initialize(authenticate_type, options, params, headers = {})
         self.authenticate_type = authenticate_type
         self.options = options
         self.params = params
+        self.headers = headers
       end
 
       def request
@@ -19,14 +20,14 @@ module Socialcast
         puts "Authenticating to #{url}"
         RestClient.log = Logger.new($stdout) if options[:trace]
         RestClient.proxy = options[:proxy] if options[:proxy]
-        resource = RestClient::Resource.new url
+        resource = RestClient::Resource.new url, headers
         response = resource.post params, :accept => :json
         puts "API response: #{response.body.to_s}" if options[:trace]
-        set_basic_credentials
+        set_default_credentials
         response
       end
 
-      def set_basic_credentials
+      def set_default_credentials
         Socialcast::CommandLine.credentials = {
           :domain => domain,
           :proxy => options[:proxy]
