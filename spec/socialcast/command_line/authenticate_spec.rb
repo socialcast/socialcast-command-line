@@ -7,7 +7,7 @@ describe Socialcast::CommandLine::Authenticate do
 
   describe '#request' do
     before do
-      RestClient::Resource.should_receive(:new).with(url).and_call_original
+      RestClient::Resource.should_receive(:new).with(url, {}).and_call_original
       RestClient::Resource.any_instance.should_receive(:post).with(subject.params, :accept => :json)
       subject.request
     end

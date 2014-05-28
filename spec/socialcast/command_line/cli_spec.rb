@@ -71,7 +71,7 @@ describe Socialcast::CommandLine::CLI do
         :api_client_secret => api_client_secret,
       })
       stub_request(:post, "https://api.socialcast.com/api/external_systems/authentication").
-         with(:body => { "external_system" => { "api_client_identifier" => api_client_identifier, "api_client_secret" => api_client_secret } }).
+         with(:headers => {'Authorization'=>'SocialcastApiClient my-client-id:my-client-secret'}).
          to_return(:status => 200, :body => "", :headers => {})
       Socialcast::CommandLine::CLI.start ['authenticate_external_system', "--api_client_identifier=#{api_client_identifier}", "--api_client_secret=#{api_client_secret}"]
     end
