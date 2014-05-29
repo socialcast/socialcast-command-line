@@ -49,21 +49,41 @@ module Socialcast
       def authenticate
         user = options[:user] || ask('Socialcast username: ')
         password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }.to_s
-        domain = options[:domain]
 
-        url = ['https://', domain, '/api/authentication'].join
-        say "Authenticating #{user} to #{url}"
         params = { :email => user, :password => password }
-        RestClient.log = Logger.new(STDOUT) if options[:trace]
-        RestClient.proxy = options[:proxy] if options[:proxy]
-        resource = RestClient::Resource.new url
-        response = resource.post params, :accept => :json
-        say "API response: #{response.body.to_s}" if options[:trace]
+        response = Socialcast::CommandLine::Authenticate.new(:user, options, params).request
         communities = JSON.parse(response.body.to_s)['communities']
         domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
 
-        Socialcast::CommandLine.credentials = {:user => user, :password => password, :domain => domain, :proxy => options[:proxy]}
+        Socialcast::CommandLine.credentials = {
+          :user => user,
+          :password => password,
+          :domain => domain
+        }
         say "Authentication successful for #{domain}"
+      end
+
+      desc "authenticate_external_system", "Authenticate using an external system"
+      method_option :api_client_identifier, :type => :string, :aliases => '-i', :desc => 'the identifier of the external system'
+      method_option :api_client_secret, :type => :string, :aliases => '-s', :desc => 'the secret key of the external system'
+      method_option :proxy, :type => :string, :desc => 'HTTP proxy options for connecting to Socialcast server'
+      method_option :domain, :type => :string, :default => 'api.socialcast.com', :desc => 'Socialcast community domain'
+      def authenticate_external_system
+        api_client_identifier = options[:api_client_identifier] || ask("Socialcast external system identifier: ")
+        api_client_secret = options[:api_client_secret] || ask("Socialcast external system API secret: ")
+
+        headers = {
+          :headers => {
+            :Authorization => "SocialcastApiClient #{api_client_identifier}:#{api_client_secret}"
+          }
+        }
+
+        Socialcast::CommandLine::Authenticate.new(:external_system, options, {}, headers).request
+
+        Socialcast::CommandLine.credentials = {
+          :api_client_identifier => api_client_identifier,
+          :api_client_secret => api_client_secret,
+        }
       end
 
       desc "share MESSAGE", "Posts a new message into socialcast"
@@ -105,6 +125,7 @@ module Socialcast
       method_option :skip_emails, :type => :boolean, :desc => 'Do not send signup emails to users'
       method_option :force, :type => :boolean, :aliases => '-f', :default => false, :desc => 'Proceed with provisioning even if no users are found, which would deactivate all users in the community'
       method_option :plugins, :type => :array, :desc => "Pass in an array of plugins. Can be either the gem require or the absolute path to a ruby file"
+      method_option :external_system, :type => :boolean, :desc => "Use an external system for authentication purposes"
       def provision
         config = ldap_config options
         load_plugins options
