@@ -1,3 +1,5 @@
+require 'uri'
+
 module Socialcast
   module CommandLine
     class Authenticate
@@ -35,7 +37,7 @@ module Socialcast
       end
 
       def url
-        @url ||= ['https://', domain, '/api/', (authenticate_type == :external_system ? 'external_systems/' : nil), 'authentication'].join
+        @url ||= URI.join('https://', domain, '/api/', (authenticate_type == :external_system ? 'external_systems/' : nil), 'authentication').to_s
       end
 
       def domain
