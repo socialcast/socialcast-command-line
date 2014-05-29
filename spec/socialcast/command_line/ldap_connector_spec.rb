@@ -209,7 +209,6 @@ describe Socialcast::CommandLine::LDAPConnector do
         ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf'])).and_yield(employee_entry1).and_yield(employee_entry2).and_yield(employee_entry3)
         ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager1,dc=example,dc=com')).and_yield(manager_entry1)
         ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager2,dc=example,dc=com')).and_yield(manager_entry2)
-        ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager1,dc=example,dc=com')).and_yield(manager_entry1)
       end
       it do
         expect do |blk|

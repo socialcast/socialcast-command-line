@@ -178,9 +178,13 @@ module Socialcast
       end
 
       def dereference_mail(entry, dn_field, mail_attribute)
+        @email_mapping ||= {}
         dn = grab(entry, dn_field)
+
+        return @email_mapping[dn] if @email_mapping.key?(dn)
+
         @ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
-          return grab(manager_entry, mail_attribute)
+          return @email_mapping[dn] = grab(manager_entry, mail_attribute)
         end
       end
 
