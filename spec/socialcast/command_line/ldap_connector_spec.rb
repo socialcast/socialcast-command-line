@@ -154,6 +154,112 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
 
+    context "when the entry has a manager" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:employee_entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :manager_dn => 'cn=manager,dc=example,dc=com') }
+      let(:manager_entry) { create_entry(:mail => 'manager@example.com') }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "manager" => "manager_dn"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf'])).and_yield(employee_entry)
+        ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager,dc=example,dc=com')).and_yield(manager_entry)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [{
+            "id" => "manager_email",
+            "label" => "manager_email",
+            "value" => "manager@example.com"
+          }],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
+    context "with multiple manager entries" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:employee_entry1) { create_entry(:mail => 'user1@example.com', :givenName => 'first name1', :sn => 'last name1', :manager_dn => 'cn=manager1,dc=example,dc=com') }
+      let(:employee_entry2) { create_entry(:mail => 'user2@example.com', :givenName => 'first name2', :sn => 'last name2', :manager_dn => 'cn=manager2,dc=example,dc=com') }
+      let(:employee_entry3) { create_entry(:mail => 'user3@example.com', :givenName => 'first name3', :sn => 'last name3', :manager_dn => 'cn=manager1,dc=example,dc=com') }
+      let(:manager_entry1) { create_entry(:mail => 'manager1@example.com') }
+      let(:manager_entry2) { create_entry(:mail => 'manager2@example.com') }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "manager" => "manager_dn"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf'])).and_yield(employee_entry1).and_yield(employee_entry2).and_yield(employee_entry3)
+        ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager1,dc=example,dc=com')).and_yield(manager_entry1)
+        ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager2,dc=example,dc=com')).and_yield(manager_entry2)
+        ldap.should_receive(:search).once.ordered.with(hash_including(:base => 'cn=manager1,dc=example,dc=com')).and_yield(manager_entry1)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_successive_args(HashWithIndifferentAccess.new({
+            'first_name' => 'first name1',
+            'last_name' => 'last name1',
+            'contact_info' => {
+              'email' => 'user1@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => "manager1@example.com"
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          }),
+          HashWithIndifferentAccess.new({
+            'first_name' => 'first name2',
+            'last_name' => 'last name2',
+            'contact_info' => {
+              'email' => 'user2@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => "manager2@example.com"
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          }),
+          HashWithIndifferentAccess.new({
+            'first_name' => 'first name3',
+            'last_name' => 'last name3',
+            'contact_info' => {
+              'email' => 'user3@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => "manager1@example.com"
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          })
+        )
+      end
+    end
+
     context "with attribute mappings at the connection level" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       before do
