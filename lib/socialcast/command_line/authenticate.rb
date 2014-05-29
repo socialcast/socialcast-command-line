@@ -35,7 +35,7 @@ module Socialcast
       end
 
       def url
-        @url ||= File.join("https://", domain, '/api/', (authenticate_type == :external_system ? 'external_systems/' : ''), 'authentication')
+        @url ||= File.join("https://", domain, 'api', (authenticate_type == :external_system ? 'external_systems/' : ''), 'authentication')
       end
 
       def domain
