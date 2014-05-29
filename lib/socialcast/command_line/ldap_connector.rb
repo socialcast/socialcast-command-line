@@ -19,16 +19,15 @@ module Socialcast
       end
 
       def each_user_hash
-        each_ldap_entry do |entry|
+        each_ldap_entry(ldap_user_search_attributes) do |entry|
           yield build_user_hash_from_mappings(entry)
         end
       end
 
-      def each_ldap_entry
-        search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => ldap_search_attributes) do |entry|
-          if grab(entry, attribute_mappings[EMAIL]).present? || (attribute_mappings.has_key?(UNIQUE_IDENTIFIER) && grab(entry, attribute_mappings[UNIQUE_IDENTIFIER]).present?)
-            yield entry
-          end
+      def each_photo_hash
+        each_ldap_entry(ldap_photo_search_attributes) do |entry|
+          photo_hash = build_photo_hash_from_mappings(entry)
+          yield photo_hash if photo_hash.present?
         end
       end
 
@@ -44,7 +43,7 @@ module Socialcast
 
         filter = filter & Net::LDAP::Filter.construct("#{attribute_mappings[identifying_field]}=#{identifier}")
 
-        search(:base => connection_config['basedn'], :filter => filter, :attributes => ldap_search_attributes, :size => 1) do |entry|
+        search(:base => connection_config['basedn'], :filter => filter, :attributes => ldap_user_search_attributes, :size => 1) do |entry|
           return build_user_hash_from_mappings(entry)
         end
 
@@ -83,13 +82,34 @@ module Socialcast
 
       private
 
+      def each_ldap_entry(attributes)
+        search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => attributes) do |entry|
+          if grab(entry, attribute_mappings[EMAIL]).present? || (attribute_mappings.has_key?(UNIQUE_IDENTIFIER) && grab(entry, attribute_mappings[UNIQUE_IDENTIFIER]).present?)
+            yield entry
+          end
+        end
+      end
+
       def connection_config
         @config["connections"][connection_name]
       end
 
-      def ldap_search_attributes
-        membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
-        attributes = attribute_mappings.values.map do |mapping_value|
+      def ldap_user_search_attributes
+        mappings = []
+        attribute_mappings.each_pair do |mapping_key, mapping_value|
+          mappings << mapping_value unless mapping_key == PROFILE_PHOTO_ATTRIBUTE
+        end
+        attributes = search_attributes(mappings)
+        attributes << permission_mappings.fetch('attribute_name', 'memberof')
+        attributes.flatten
+      end
+
+      def ldap_photo_search_attributes
+        search_attributes [attribute_mappings['email'], attribute_mappings['profile_photo']]
+      end
+
+      def search_attributes(mappings)
+        mappings.map do |mapping_value|
           value = begin
             mapping_value.camelize.constantize
           rescue NameError
@@ -110,8 +130,7 @@ module Socialcast
               mapping_value
             end
           end
-        end.flatten
-        attributes << membership_attribute
+        end
       end
 
       def ldap
@@ -245,6 +264,14 @@ module Socialcast
         add_groups(entry, user_hash)
 
         user_hash
+      end
+
+      def build_photo_hash_from_mappings(entry)
+        photo_hash = HashWithIndifferentAccess.new
+        photo_hash[EMAIL] = grab(entry, attribute_mappings[EMAIL])
+        photo_hash[PROFILE_PHOTO_ATTRIBUTE] = grab(entry, attribute_mappings[PROFILE_PHOTO_ATTRIBUTE])
+
+        return photo_hash if photo_hash[EMAIL].present? && photo_hash[PROFILE_PHOTO_ATTRIBUTE].present?
       end
     end
   end

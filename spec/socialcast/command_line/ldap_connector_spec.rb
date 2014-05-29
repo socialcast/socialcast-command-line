@@ -118,6 +118,36 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
 
+    context "when the entry has a profile photo" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "profile_photo" => "jpegPhoto"
+        }
+      end
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it "does not retrieve the profile photo data from ldap" do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
     context "with attribute mappings at the connection level" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       before do
@@ -281,47 +311,70 @@ describe Socialcast::CommandLine::LDAPConnector do
     end
   end
 
-  describe "#each_ldap_entry" do
-    context("when the entry has an email") do
+  describe "#each_photo_hash" do
+    context "when the entry has an email and photo" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
-      before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
-      end
-      it do
-        expect do |blk|
-          connector.each_ldap_entry(&blk)
-        end.to yield_with_args(entry)
-      end
-    end
-    context("when the entry has a unique_identifier") do
+      let(:entry) { create_entry(:mail => 'user@example.com', :jpegPhoto => "photo") }
       let(:mappings) do
         {
           "first_name" => "givenName",
           "last_name" => "sn",
-          "unique_identifier" => "uid"
+          "email" => "mail",
+          "profile_photo" => "jpegPhoto"
         }
       end
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:uid => 'unique identifier', :givenName => 'first name', :sn => 'last name') }
       before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
       end
       it do
         expect do |blk|
-          connector.each_ldap_entry(&blk)
-        end.to yield_with_args(entry)
+          connector.each_photo_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'email' => 'user@example.com',
+          'profile_photo' => "photo"
+        }))
       end
     end
-    context("when the entry does not have a unique_identifier or email") do
+    context "when the entry does not have an email" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:mail => nil, :givenName => 'first name', :sn => 'last name') }
-      before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      let(:entry) { create_entry(:mail => '', :jpegPhoto => "photo") }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "unique_identifief" => "uid",
+          "profile_photo" => "jpegPhoto"
+        }
       end
-      it 'does not yield the entry' do
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+      end
+      it 'does not yield' do
         expect do |blk|
-          connector.each_ldap_entry(&blk)
+          connector.each_photo_hash(&blk)
+        end.not_to yield_control
+      end
+    end
+
+    context "when the entry does not have a photo" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:entry) { create_entry(:mail => 'user@example.com', :jpegPhoto => "") }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "unique_identifief" => "uid",
+          "profile_photo" => "jpegPhoto"
+        }
+      end
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+      end
+      it 'does not yield' do
+        expect do |blk|
+          connector.each_photo_hash(&blk)
         end.not_to yield_control
       end
     end

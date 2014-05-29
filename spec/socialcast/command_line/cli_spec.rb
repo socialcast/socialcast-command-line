@@ -104,7 +104,7 @@ describe Socialcast::CommandLine::CLI do
     context "user does not have a profile photo" do
       let(:config_file) { ldap_with_profile_photo_config_file }
       let(:system_default_photo) { true }
-      let(:photo_data) { "\x89PNGabc" }
+      let(:photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
@@ -174,11 +174,11 @@ describe Socialcast::CommandLine::CLI do
     context "user already has a profile photo" do
       let(:config_file) { ldap_with_profile_photo_config_file }
       let(:system_default_photo) { false }
-      let(:photo_data) { "\x89PNGabc" }
+      let(:photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
-        @entry[:jpegPhoto] = "\x89PNGabc"
+        @entry[:jpegPhoto] = photo_data
         Net::LDAP.any_instance.stub(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)

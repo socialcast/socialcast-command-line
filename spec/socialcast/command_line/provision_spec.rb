@@ -17,6 +17,7 @@ describe Socialcast::CommandLine::Provision do
   let!(:ldap_without_account_type_or_roles_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_account_type_or_roles.yml')) }
   let!(:ldap_without_options_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_options.yml')) }
 
+  let(:binary_photo_data) { "\x89PNGabc".force_encoding('binary') }
   def create_entry(entry_attributes)
     Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
       entry_attributes.each_pair do |attr, value|
@@ -120,12 +121,12 @@ describe Socialcast::CommandLine::Provision do
           ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
           Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'photoCon', 'isMemberOf'])).and_yield(entry1)
+          ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
 
           ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
           Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
-          ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'photoCon2', 'isMemberOf'])).and_yield(entry2)
+          ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
 
           provision_instance.provision
         end
@@ -240,8 +241,8 @@ describe Socialcast::CommandLine::Provision do
 
       context "with profile_photo attribute mappings" do
         before do
-          entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => 'photo'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
+          entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberof'])).and_yield(entry)
 
           Socialcast::CommandLine::Provision.new(ldap_with_profile_photo_config, {}).provision
         end
@@ -440,7 +441,7 @@ describe Socialcast::CommandLine::Provision do
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
         Net::LDAP.any_instance.should_receive(:search).once
-          .with(hash_including(:attributes => ['mailCon', 'photoCon', 'isMemberOf'], :filter => filter))
+          .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
       it "returns the entry" do
@@ -462,13 +463,13 @@ describe Socialcast::CommandLine::Provision do
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
         ldap_instance1.should_receive(:search).once.ordered
-          .with(hash_including(:attributes => ['mailCon', 'photoCon', 'isMemberOf'], :filter => filter1))
+          .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
 
         ldap_instance2 = double(Net::LDAP, :auth => nil)
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
         ldap_instance2.should_receive(:search).once.ordered
-          .with(hash_including(:attributes => ['mailCon2', 'firstName', 'photoCon2', 'isMemberOf'], :filter => filter2))
+          .with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'], :filter => filter2))
           .and_yield(entry)
 
       end
@@ -491,13 +492,13 @@ describe Socialcast::CommandLine::Provision do
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
         ldap_instance1.should_receive(:search)
-          .with(hash_including(:attributes => ['mailCon', 'photoCon', 'isMemberOf'], :filter => filter1))
+          .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
 
         ldap_instance2 = double(Net::LDAP, :auth => nil)
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
         ldap_instance2.should_receive(:search).once.ordered
-          .with(hash_including(:attributes => ['mailCon2', 'firstName', 'photoCon2', 'isMemberOf'], :filter => filter2))
+          .with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'], :filter => filter2))
       end
       it "returns nil" do
         provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should be_nil
@@ -521,8 +522,8 @@ describe Socialcast::CommandLine::Provision do
         }
       end
       before do
-        entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :jpegPhoto => photo_data
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'jpegPhoto', 'memberof'])).and_yield(entry)
+        entry = create_entry :mail => 'user@example.com', :jpegPhoto => photo_data
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
 
         Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
       end
@@ -539,7 +540,7 @@ describe Socialcast::CommandLine::Provision do
           Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
         end
         context 'for a binary file' do
-          let(:photo_data) { "\x89PNGabc" }
+          let(:photo_data) { binary_photo_data }
           before do
             RestClient.should_not_receive(:get)
             sync_photos
@@ -550,7 +551,7 @@ describe Socialcast::CommandLine::Provision do
           let(:photo_data) { "http://socialcast.com/someimage.png" }
           context 'when it successfully downloads' do
             before do
-              RestClient.should_receive(:get).with(photo_data).and_return("\x89PNGabc")
+              RestClient.should_receive(:get).with(photo_data).and_return(binary_photo_data)
               sync_photos
             end
             it 'downloads the image form the web to upload the photo' do end
@@ -602,13 +603,13 @@ describe Socialcast::CommandLine::Provision do
       before do
         ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
-        entry1 = create_entry :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name', :photoCon => "\x89PNGabc"
-        ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'photoCon', 'isMemberOf'])).and_yield(entry1)
+        entry1 = create_entry :mailCon => 'user@example.com', :photoCon => binary_photo_data
+        ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'photoCon'])).and_yield(entry1)
 
         ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
-        entry2 = create_entry :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2', :photoCon2 => "\x89PNGabc"
-        ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'photoCon2', 'isMemberOf'])).and_yield(entry2)
+        entry2 = create_entry :mailCon2 => 'user2@example.com', :photoCon2 => binary_photo_data
+        ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'photoCon2'])).and_yield(entry2)
 
         Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
