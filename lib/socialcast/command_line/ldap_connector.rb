@@ -114,7 +114,6 @@ module Socialcast
         attributes << membership_attribute
       end
 
-
       def ldap
         @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
           ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']

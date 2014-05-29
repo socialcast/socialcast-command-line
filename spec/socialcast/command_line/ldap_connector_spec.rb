@@ -55,7 +55,7 @@ describe Socialcast::CommandLine::LDAPConnector do
   end
 
   describe "#each_user_hash" do
-    context "without ldap group memberships" do
+    context "when the entry has an email" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
       before do
@@ -76,6 +76,48 @@ describe Socialcast::CommandLine::LDAPConnector do
         }))
       end
     end
+
+    context("when the entry does not have a unique_identifier or email") do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:entry) { create_entry(:mail => nil, :givenName => 'first name', :sn => 'last name') }
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it 'does not yield the entry' do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.not_to yield_control
+      end
+    end
+
+    context("when the entry has a unique_identifier") do
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "unique_identifier" => "uid"
+        }
+      end
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:entry) { create_entry(:uid => 'unique identifier', :givenName => 'first name', :sn => 'last name') }
+      before do
+        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'unique_identifier' => 'unique identifier',
+          'contact_info' => {},
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
     context "with attribute mappings at the connection level" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       before do
