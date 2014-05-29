@@ -5,10 +5,10 @@ require 'active_support/core_ext/array/wrap'
 module Socialcast
   module CommandLine
     class LDAPConnector
-      UNIQUE_IDENTIFIER = "unique_identifier"
-      EMAIL = "email"
-      PRIMARY_ATTRIBUTES = [UNIQUE_IDENTIFIER, 'first_name', 'last_name', 'employee_number']
-      CONTACT_ATTRIBUTES = [EMAIL, 'location', 'cell_phone', 'office_phone']
+      UNIQUE_IDENTIFIER_ATTRIBUTE = "unique_identifier"
+      EMAIL_ATTRIBUTE = "email"
+      PRIMARY_ATTRIBUTES = [UNIQUE_IDENTIFIER_ATTRIBUTE, 'first_name', 'last_name', 'employee_number']
+      CONTACT_ATTRIBUTES = [EMAIL_ATTRIBUTE, 'location', 'cell_phone', 'office_phone']
       PROFILE_PHOTO_ATTRIBUTE = 'profile_photo'
 
       attr_reader :attribute_mappings, :connection_name
@@ -50,7 +50,7 @@ module Socialcast
 
       def fetch_user_hash(identifier, options)
         options = options.dup
-        identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER
+        identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER_ATTRIBUTE
 
         filter = if connection_config['filter'].present?
                    Net::LDAP::Filter.construct(connection_config['filter'])
@@ -100,7 +100,7 @@ module Socialcast
 
       def each_ldap_entry(attributes)
         search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => attributes) do |entry|
-          if grab(entry, attribute_mappings[EMAIL]).present? || (attribute_mappings.has_key?(UNIQUE_IDENTIFIER) && grab(entry, attribute_mappings[UNIQUE_IDENTIFIER]).present?)
+          if grab(entry, attribute_mappings[EMAIL_ATTRIBUTE]).present? || (attribute_mappings.has_key?(UNIQUE_IDENTIFIER_ATTRIBUTE) && grab(entry, attribute_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]).present?)
             yield entry
           end
         end
@@ -194,11 +194,11 @@ module Socialcast
             :return_result => false,
             :filter => group_membership_mappings["filter"],
             :base => connection_config["basedn"],
-            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER]]
+            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]]
           }
 
           search(search_options) do |entry|
-            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER])
+            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE])
           end
         end
       end
@@ -224,7 +224,7 @@ module Socialcast
         user_hash['custom_fields'] = []
         custom_attributes.each do |attribute|
           if attribute == 'manager'
-            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, attribute_mappings[attribute], attribute_mappings[EMAIL]) }
+            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, attribute_mappings[attribute], attribute_mappings[EMAIL_ATTRIBUTE]) }
           else
             user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attribute_mappings[attribute]) }
           end
@@ -281,10 +281,10 @@ module Socialcast
 
       def build_photo_hash_from_mappings(entry)
         photo_hash = HashWithIndifferentAccess.new
-        photo_hash[EMAIL] = grab(entry, attribute_mappings[EMAIL])
+        photo_hash[EMAIL_ATTRIBUTE] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
         photo_hash[PROFILE_PHOTO_ATTRIBUTE] = grab(entry, attribute_mappings[PROFILE_PHOTO_ATTRIBUTE])
 
-        return photo_hash if photo_hash[EMAIL].present? && photo_hash[PROFILE_PHOTO_ATTRIBUTE].present?
+        return photo_hash if photo_hash[EMAIL_ATTRIBUTE].present? && photo_hash[PROFILE_PHOTO_ATTRIBUTE].present?
       end
     end
   end
