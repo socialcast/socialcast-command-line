@@ -46,7 +46,7 @@ module Socialcast
             export.users(:type => "array") do |users|
               each_user_hash do |user_hash|
                 users << user_hash.to_xml(:skip_instruct => true, :root => 'user')
-                user_whitelist << [user_hash['contact_info']['email'], user_hash['unique_identifier'], user_hash['employee_number']]
+                user_whitelist << [user_hash['contact_info'][LDAPConnector::EMAIL_ATTRIBUTE], user_hash[LDAPConnector::UNIQUE_IDENTIFIER_ATTRIBUTE], user_hash['employee_number']]
               end
             end # users
           end # export
@@ -76,15 +76,15 @@ module Socialcast
         http_config = @ldap_config.fetch 'http', {}
 
         @ldap_config['connections'].keys.each do |connection_name|
-          Socialcast::CommandLine::LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).fetch(Socialcast::CommandLine::LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
+          LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).fetch(LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
         end
 
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
 
         each_ldap_connector do |connector|
           connector.each_photo_hash do |photo_hash|
-            email = photo_hash['email']
-            if profile_photo_data = photo_hash['profile_photo']
+            email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
+            if profile_photo_data = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
               if profile_photo_data.start_with?('http')
                 begin
                   profile_photo_data = RestClient.get(profile_photo_data)
@@ -132,7 +132,7 @@ module Socialcast
 
       def each_ldap_connector
         @ldap_config['connections'].keys.each do |connection_name|
-          Socialcast::CommandLine::LDAPConnector.with_connector(connection_name, @ldap_config) do |ldap_connector|
+          LDAPConnector.with_connector(connection_name, @ldap_config) do |ldap_connector|
             yield ldap_connector
           end
         end

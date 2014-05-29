@@ -121,7 +121,7 @@ module Socialcast
       end
 
       def ldap_photo_search_attributes
-        search_attributes [attribute_mappings['email'], attribute_mappings['profile_photo']]
+        search_attributes [attribute_mappings[LDAPConnector::EMAIL_ATTRIBUTE], attribute_mappings[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]]
       end
 
       def search_attributes(mappings)
