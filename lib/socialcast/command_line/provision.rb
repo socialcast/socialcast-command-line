@@ -82,7 +82,7 @@ module Socialcast
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
 
         each_ldap_connector do |connector|
-          each_ldap_entry do |entry|
+          connector.each_ldap_entry do |entry|
             attr_mappings = connector.attribute_mappings
             email = connector.grab(entry, attr_mappings['email'])
             if profile_photo_data = connector.grab(entry, attr_mappings[Socialcast::CommandLine::LDAPConnector::PROFILE_PHOTO_ATTRIBUTE])
