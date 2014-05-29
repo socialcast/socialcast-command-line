@@ -75,8 +75,8 @@ module Socialcast
       def sync_photos
         http_config = @ldap_config.fetch 'http', {}
 
-        each_ldap_connector do |connector|
-          connector.attribute_mappings.fetch(Socialcast::CommandLine::LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
+        @ldap_config['connections'].keys.each do |connection_name|
+          Socialcast::CommandLine::LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).fetch(Socialcast::CommandLine::LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
         end
 
         search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
@@ -130,19 +130,11 @@ module Socialcast
 
       private
 
-      def ldap_connector(connection_name)
-        @connectors ||= {}
-
-        unless @connectors[connection_name]
-          @connectors[connection_name] = Socialcast::CommandLine::LDAPConnector.new(connection_name, @ldap_config)
-        end
-
-        @connectors[connection_name]
-      end
-
       def each_ldap_connector
         @ldap_config['connections'].keys.each do |connection_name|
-          yield ldap_connector(connection_name)
+          Socialcast::CommandLine::LDAPConnector.with_connector(connection_name, @ldap_config) do |ldap_connector|
+            yield ldap_connector
+          end
         end
       end
 

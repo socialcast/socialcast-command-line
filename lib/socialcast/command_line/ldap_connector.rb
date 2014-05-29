@@ -13,9 +13,26 @@ module Socialcast
 
       attr_reader :attribute_mappings, :connection_name
 
-      def initialize(connection_name, config)
+      def self.with_connector(connection_name, config)
+        connection_config = config["connections"][connection_name]
+        ldap = Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
+          ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
+          ldap_instance.auth connection_config["username"], connection_config["password"]
+        end
+
+        ldap.open do |connected_ldap_instance|
+          yield new(connection_name, config, connected_ldap_instance)
+        end
+      end
+
+      def self.attribute_mappings_for(connection_name, config)
+        config['connections'][connection_name]['mappings'] || config.fetch('mappings', {})
+      end
+
+      def initialize(connection_name, config, ldap)
         @connection_name = connection_name
         @config = config
+        @ldap = ldap
       end
 
       def each_user_hash
@@ -51,8 +68,7 @@ module Socialcast
       end
 
       def attribute_mappings
-        @attribute_mappings ||= connection_config['mappings']
-        @attribute_mappings ||= @config.fetch 'mappings', {}
+        @attribute_mappings ||= LDAPConnector.attribute_mappings_for(@connection_name, @config)
       end
 
       # grab a *single* value of an attribute
@@ -133,23 +149,16 @@ module Socialcast
         end
       end
 
-      def ldap
-        @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
-          ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
-          ldap_instance.auth connection_config["username"], connection_config["password"]
-        end
-      end
-
       def search(search_options)
         options_for_search = if search_options[:base].present?
                                Array.wrap(search_options)
                              else
-                               distinguished_names = Array.wrap(ldap.search_root_dse.namingcontexts)
+                               distinguished_names = Array.wrap(@ldap.search_root_dse.namingcontexts)
                                options_for_search = distinguished_names.map { |dn| search_options.merge(:base => dn ) }
                              end
 
         options_for_search.each do |options|
-          ldap.search(options) do |entry|
+          @ldap.search(options) do |entry|
             yield(entry)
           end
         end
@@ -170,7 +179,7 @@ module Socialcast
 
       def dereference_mail(entry, dn_field, mail_attribute)
         dn = grab(entry, dn_field)
-        ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
+        @ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
           return grab(manager_entry, mail_attribute)
         end
       end
