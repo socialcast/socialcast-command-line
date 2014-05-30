@@ -10,6 +10,11 @@ require_relative '../lib/socialcast'
 RSpec.configure do |config|
   config.mock_with :rspec
 
+  config.before do
+    stubbed_credentials = File.join(File.dirname(__FILE__), '..', 'fixtures')
+    Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials)
+  end
+
   def capture_with_status(stream)
     exit_status = 0
     begin
