@@ -15,7 +15,7 @@ http://www.socialcast.com/resources/api.html
 ### socialcast info
 Used to tell you information about the currently installed gem.
 
-> Example `$ socialcast info --v`
+> Example `$ socialcast -v`
 
 ### socialcast authenticate
 Used to authenticate your local system to the Socialcast servers. This will create a credentials file stored locally that will be later used to send secure, authenticated requests to Socialcast.
@@ -33,11 +33,9 @@ Used to post a message to the stream as the currently authenticated person.
 > Example `$ socialcast share 'Hi Team!'`
 
 ### socialcast provision
-Used to sync an Active Directory server with your Socialcast community.
+Used to sync an LDAP server with your Socialcast community.
 
 [For more detailed information](http://developers.socialcast.com/admin/directory-integration-overview/)
-
-[For more available options](https://github.com/socialcast/socialcast-command-line/blob/master/lib/socialcast/command_line/cli.rb#L119-128)
 
 > Example `$ socialcast provision --config /path/ldap.yml`
 
