@@ -169,7 +169,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => system_default_photo
+                'is_community_default' => system_default_photo
               }
             }
           ]
@@ -206,7 +206,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => system_default_photo
+                'is_community_default' => system_default_photo
               }
             }
           ]
@@ -239,7 +239,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => system_default_photo
+                'is_community_default' => system_default_photo
               }
             }
           ]
@@ -306,7 +306,7 @@ describe Socialcast::CommandLine::CLI do
         rest_client_resource = double(:rest_client_resource)
         rest_client_resource.stub(:post).and_raise(RestClient::Unauthorized.new(double('Unauthorized HTTP Response', :code => '401', :body => 'Unauthorized HTTP Response')))
         Socialcast::CommandLine.stub(:resource_for_path).and_return(rest_client_resource)
-        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.\nResponse from server: Unauthorized HTTP Response").once
+        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.").once
 
         Socialcast::CommandLine::CLI.start ['provision', '-f']
       end
