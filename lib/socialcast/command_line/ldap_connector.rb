@@ -33,6 +33,7 @@ module Socialcast
         @connection_name = connection_name
         @config = config
         @ldap = ldap
+        @group_unique_identifiers = fetch_group_unique_identifiers
       end
 
       def each_user_hash
@@ -188,8 +189,10 @@ module Socialcast
         end
       end
 
-      def group_unique_identifiers
-        @group_uids ||= {}.tap do |groups|
+      def fetch_group_unique_identifiers
+        return nil unless group_membership_mappings.present?
+
+        {}.tap do |groups|
           search_options = {
             :return_result => false,
             :filter => group_membership_mappings["filter"],
@@ -259,10 +262,10 @@ module Socialcast
         membership_attribute = permission_mappings.fetch 'attribute_name', 'memberof'
         memberships = entry[membership_attribute]
 
-        mapped_group_dns = (group_unique_identifiers.keys & memberships)
+        mapped_group_dns = (@group_unique_identifiers.keys & memberships)
 
         user_hash['groups'] = mapped_group_dns.each_with_object([]) do |ldap_group_dn, socialcast_groups|
-          socialcast_groups << group_unique_identifiers[ldap_group_dn]
+          socialcast_groups << @group_unique_identifiers[ldap_group_dn]
         end
       end
 
