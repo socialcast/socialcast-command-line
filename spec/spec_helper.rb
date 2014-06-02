@@ -32,6 +32,14 @@ RSpec.configure do |config|
     return result, exit_status
   end
 
+  def create_entry(entry_attributes)
+    Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
+      entry_attributes.each_pair do |attr, value|
+        e[attr] = value
+      end
+    end
+  end
+
   def remove_directories(*names)
     project_dir = Pathname.new(Dir.pwd)
     names.each do |name|
