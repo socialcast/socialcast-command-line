@@ -16,6 +16,13 @@ describe Socialcast::CommandLine::CLI do
     Socialcast::CommandLine.stub(:credentials).and_return(credentials)
   end
 
+  let(:ldap) do
+    ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
+    ldap_instance.should_receive(:open).and_yield(ldap_instance)
+    Net::LDAP.should_receive(:new).and_return(ldap_instance)
+    ldap_instance
+  end
+
   describe '#info' do
     before do
       Socialcast::CommandLine::CLI.any_instance.should_receive(:say).with("Socialcast Command Line #{Socialcast::CommandLine::VERSION}")
@@ -154,7 +161,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:jpegPhoto] = photo_data
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)
         search_api_response = {
@@ -191,7 +198,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:jpegPhoto] = photo_data
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)
         search_api_response = {
@@ -224,7 +231,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:jpegPhoto] = photo_data
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)
         search_api_response = {
@@ -258,7 +265,7 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with 0 users found in ldap' do
       before do
-        Net::LDAP.any_instance.stub(:search).and_return(nil)
+        ldap.should_receive(:search).and_return(nil)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -273,7 +280,7 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with 0 users found in ldap and force option passed' do
       before do
-        Net::LDAP.any_instance.stub(:search).and_return(nil)
+        ldap.should_receive(:search).and_return(nil)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -289,7 +296,7 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with socialcast returning 401' do
       before do
-        Net::LDAP.any_instance.stub(:search).and_return(nil)
+        ldap.should_receive(:search).and_return(nil)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -309,7 +316,7 @@ describe Socialcast::CommandLine::CLI do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -322,19 +329,7 @@ describe Socialcast::CommandLine::CLI do
       it 'resolves absolute path without using current process directory' do end # see expectations
     end
     context 'with plugins option used with non-existent ruby files' do
-      before do
-        @entry = Net::LDAP::Entry.new("dc=example,dc=com")
-        @entry[:mail] = 'ryan@example.com'
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
-
-        @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        RestClient::Resource.any_instance.stub(:post)
-
-      end
-      it 'does not post to Socialcast and throws Kernel.abort' do
+      it 'does not post to Socialcast and raises an error' do
         lambda { Socialcast::CommandLine::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', ['does_not_exist.rb', 'also_does_not_exist.rb']] }.should raise_error
       end
     end
@@ -343,7 +338,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:plugin_attr] = 'some value'
-        Net::LDAP.any_instance.should_receive(:search).with(hash_including(:attributes => ['plugin_attr', 'sn', 'mail', 'memberof'])).and_yield(@entry)
+        ldap.should_receive(:search).with(hash_including(:attributes => ['plugin_attr', 'sn', 'mail', 'memberof'])).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -362,7 +357,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -383,7 +378,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=External,dc=example,dc=com'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -404,7 +399,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Contractor,dc=example,dc=com'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -426,7 +421,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Admins,dc=example,dc=com'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -450,7 +445,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Marketing,dc=example,dc=com'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -474,7 +469,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Engineering,dc=example,dc=com'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -500,7 +495,7 @@ describe Socialcast::CommandLine::CLI do
         @entry[:l] = 'San Francisco'
         @entry[:co] = 'USA'
 
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap.should_receive(:search).and_yield(@entry)
 
         @result = ''
         Zlib::GzipWriter.stub(:open).and_yield(@result)
@@ -525,10 +520,6 @@ describe Socialcast::CommandLine::CLI do
         employee_entry[:ldap_manager] = 'cn=manager,dc=example,dc=com'
         manager_entry = Net::LDAP::Entry.new("cn=manager,dc=example,dc=com")
         manager_entry[:mail] = 'manager@example.com'
-
-        ldap = double(Net::LDAP, :encryption => nil, :auth => nil)
-        ldap.should_receive(:open).and_yield(ldap)
-        Net::LDAP.should_receive(:new).and_return(ldap)
 
         ldap.should_receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
         ldap.should_receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)

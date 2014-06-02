@@ -26,6 +26,13 @@ describe Socialcast::CommandLine::Provision do
     end
   end
 
+  let(:ldap) do
+    ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
+    ldap_instance.should_receive(:open).and_yield(ldap_instance)
+    Net::LDAP.should_receive(:new).and_return(ldap_instance)
+    ldap_instance
+  end
+
   describe "#provision" do
     let(:result) { '' }
 
@@ -38,7 +45,7 @@ describe Socialcast::CommandLine::Provision do
     context "when the entry has an email" do
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
         RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
         Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
@@ -50,7 +57,7 @@ describe Socialcast::CommandLine::Provision do
     context "when the entry has a unique_identifier" do
       before do
         entry = create_entry 'user', :uid => 'userID', :givenName => 'first name', :sn => 'last name'
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
         RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
         Socialcast::CommandLine::Provision.new(ldap_with_unique_identifier_config, {}).provision
@@ -62,7 +69,7 @@ describe Socialcast::CommandLine::Provision do
     context "when the entry has no email or unique_identifier" do
       before do
         entry = create_entry 'user', :mail => '', :givenName => 'first name', :sn => 'last name'
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
         RestClient::Resource.any_instance.should_not_receive(:post)
       end
       it "does not put the user in the output file" do
@@ -99,7 +106,7 @@ describe Socialcast::CommandLine::Provision do
       context "with mappings at the global level" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
         end
@@ -150,7 +157,7 @@ describe Socialcast::CommandLine::Provision do
       context "with custom attribute mappings" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :custom_ldap1 => 'custom value 1', :custom_ldap2 => 'custom value 2'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::Provision.new(ldap_with_custom_attributes_config, {}).provision
         end
@@ -218,7 +225,7 @@ describe Socialcast::CommandLine::Provision do
         before do
           module TestLdapAttributeMapping end
           entry = create_entry 'user', :test_ldap_attribute_mapping => 'user@example.com'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::Provision.new(ldap_with_class_ldap_attribute_config, {}).provision
         end
@@ -237,7 +244,7 @@ describe Socialcast::CommandLine::Provision do
       context "without options specified" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::Provision.new(ldap_without_options_config, {}).provision
         end
@@ -255,7 +262,7 @@ describe Socialcast::CommandLine::Provision do
       context "with profile_photo attribute mappings" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberof'])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberof'])).and_yield(entry)
 
           Socialcast::CommandLine::Provision.new(ldap_with_profile_photo_config, {}).provision
         end
@@ -305,7 +312,7 @@ describe Socialcast::CommandLine::Provision do
       context "with roles for an external contributor" do
         let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -317,7 +324,7 @@ describe Socialcast::CommandLine::Provision do
       context "with roles for a member" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::Provision.new(ldap_default_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -333,7 +340,7 @@ describe Socialcast::CommandLine::Provision do
       context "with account_types mapping and no role mappings" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::Provision.new(ldap_with_account_type_without_roles_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -345,7 +352,7 @@ describe Socialcast::CommandLine::Provision do
       context "with role mappings and no account_type mapping" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::Provision.new(ldap_with_roles_without_account_type_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -361,7 +368,7 @@ describe Socialcast::CommandLine::Provision do
       context "without account_type or roles mappings" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::Provision.new(ldap_without_account_type_or_roles_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -432,7 +439,7 @@ describe Socialcast::CommandLine::Provision do
     let(:provision_instance) { Socialcast::CommandLine::Provision.new(ldap_default_config) }
     before do
       entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-      Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
     end
     it do
       expect do |blk|
@@ -456,7 +463,7 @@ describe Socialcast::CommandLine::Provision do
       let(:entry) { create_entry 'user', :mailCon => 'user@example.com' }
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
-        Net::LDAP.any_instance.should_receive(:search).once
+        ldap.should_receive(:search).once
           .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
@@ -543,7 +550,7 @@ describe Socialcast::CommandLine::Provision do
       end
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :jpegPhoto => photo_data
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
 
         Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
       end
