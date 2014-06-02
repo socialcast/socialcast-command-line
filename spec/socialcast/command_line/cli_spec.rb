@@ -518,17 +518,22 @@ describe Socialcast::CommandLine::CLI do
     end
 
     context 'with ldap.yml configuration including manager attribute mapping' do
+      let(:result) { '' }
       before do
-        @entry = Net::LDAP::Entry.new("dc=example,dc=com")
-        @entry[:mail] = 'ryan@example.com'
-        @entry[:manager] = 'cn=bossman,dc=example,dc=com'
-        @manager_email = 'bossman@example.com'
+        employee_entry = Net::LDAP::Entry.new("cn=employee,dc=example,dc=com")
+        employee_entry[:mail] = 'employee@example.com'
+        employee_entry[:ldap_manager] = 'cn=manager,dc=example,dc=com'
+        manager_entry = Net::LDAP::Entry.new("cn=manager,dc=example,dc=com")
+        manager_entry[:mail] = 'manager@example.com'
 
-        Socialcast::CommandLine::LDAPConnector.any_instance.should_receive(:dereference_mail).with(kind_of(Net::LDAP::Entry), "ldap_manager", "mail").and_return(@manager_email)
-        Net::LDAP.any_instance.stub(:search).and_yield(@entry)
+        ldap = double(Net::LDAP, :encryption => nil, :auth => nil)
+        ldap.should_receive(:open).and_yield(ldap)
+        Net::LDAP.should_receive(:new).and_return(ldap)
 
-        @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
+        ldap.should_receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
+        ldap.should_receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
+
+        Zlib::GzipWriter.stub(:open).and_yield(result)
         Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_manager_attribute_config)
         File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
@@ -538,8 +543,8 @@ describe Socialcast::CommandLine::CLI do
       end
 
       it 'adds a manager_email entry of bossman@example.com' do
-        @result.should =~ /<email>ryan@example.com<\/email>/
-        @result.should =~ /<label>manager_email<\/label>\s*<value>bossman@example.com<\/value>/
+        result.should =~ /<email>employee@example.com<\/email>/
+        result.should =~ /<label>manager_email<\/label>\s*<value>manager@example.com<\/value>/
       end
     end
   end

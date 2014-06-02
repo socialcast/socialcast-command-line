@@ -7,6 +7,7 @@ module Socialcast
     class LDAPConnector
       UNIQUE_IDENTIFIER_ATTRIBUTE = "unique_identifier"
       EMAIL_ATTRIBUTE = "email"
+      MANAGER_ATTRIBUTE = "manager"
       PRIMARY_ATTRIBUTES = [UNIQUE_IDENTIFIER_ATTRIBUTE, 'first_name', 'last_name', 'employee_number']
       CONTACT_ATTRIBUTES = [EMAIL_ATTRIBUTE, 'location', 'cell_phone', 'office_phone']
       PROFILE_PHOTO_ATTRIBUTE = 'profile_photo'
@@ -34,6 +35,7 @@ module Socialcast
         @config = config
         @ldap = ldap
         @group_unique_identifiers = fetch_group_unique_identifiers
+        @dn_to_email_hash = fetch_dn_to_email_hash
       end
 
       def each_user_hash
@@ -111,6 +113,10 @@ module Socialcast
         @config["connections"][connection_name]
       end
 
+      def ldap_mail_search_attributes
+        search_attributes [attribute_mappings[LDAPConnector::EMAIL_ATTRIBUTE]]
+      end
+
       def ldap_user_search_attributes
         mappings = []
         attribute_mappings.each_pair do |mapping_key, mapping_value|
@@ -178,15 +184,10 @@ module Socialcast
         permission_mappings['group_memberships']
       end
 
-      def dereference_mail(entry, dn_field, mail_attribute)
-        @email_mapping ||= {}
+      def dereference_mail(entry, dn_field)
         dn = grab(entry, dn_field)
 
-        return @email_mapping[dn] if @email_mapping.key?(dn)
-
-        @ldap.search(:base => dn, :scope => Net::LDAP::SearchScope_BaseObject) do |manager_entry|
-          return @email_mapping[dn] = grab(manager_entry, mail_attribute)
-        end
+        @dn_to_email_hash[dn]
       end
 
       def fetch_group_unique_identifiers
@@ -202,6 +203,16 @@ module Socialcast
 
           search(search_options) do |entry|
             groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE])
+          end
+        end
+      end
+
+      def fetch_dn_to_email_hash
+        return nil unless attribute_mappings[MANAGER_ATTRIBUTE].present?
+
+        {}.tap do |dn_to_email_hash|
+          each_ldap_entry(ldap_mail_search_attributes) do |entry|
+            dn_to_email_hash[entry.dn] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
           end
         end
       end
@@ -226,8 +237,8 @@ module Socialcast
 
         user_hash['custom_fields'] = []
         custom_attributes.each do |attribute|
-          if attribute == 'manager'
-            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, attribute_mappings[attribute], attribute_mappings[EMAIL_ATTRIBUTE]) }
+          if attribute == MANAGER_ATTRIBUTE
+            user_hash['custom_fields'] << { 'id' => 'manager_email', 'label' => 'manager_email', 'value' => dereference_mail(entry, attribute_mappings[attribute]) }
           else
             user_hash['custom_fields'] << { 'id' => attribute, 'label' => attribute, 'value' => grab(entry, attribute_mappings[attribute]) }
           end
