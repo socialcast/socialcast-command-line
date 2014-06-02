@@ -3,6 +3,7 @@ require 'fileutils'
 
 require_relative 'socialcast/command_line/ldap_connector'
 require_relative 'socialcast/command_line/provision'
+require_relative 'socialcast/command_line/authenticate'
 require_relative 'socialcast/command_line/message'
 require_relative 'socialcast/command_line/cli'
 require_relative 'socialcast/command_line/version'
@@ -25,8 +26,10 @@ module Socialcast
     end
 
     def self.credentials=(options)
-      File.open(credentials_file, "w") do |f|
-        f.write(options.to_yaml)
+      File.open(credentials_file, "a+") do |f|
+        existing_content = YAML.load(f.read) || {}
+        f.truncate(0)
+        f.write(existing_content.merge(options).to_yaml)
       end
       File.chmod 0600, credentials_file
     end
@@ -36,7 +39,15 @@ module Socialcast
       RestClient.log = Logger.new(STDOUT) if debug
       RestClient.proxy = credentials[:proxy] if credentials[:proxy]
       url = ['https://', credentials[:domain], path].join
-      RestClient::Resource.new url, options.merge({ :user => credentials[:user], :password => credentials[:password] })
+      RestClient::Resource.new url, options.merge(authentication(options))
+    end
+
+    def self.authentication(options)
+      if options[:external_system]
+        { :headers => { :Authorization => "SocialcastApiClient #{credentials[:api_client_identifier]}:#{credentials[:api_client_secret]}" } }
+      else
+        { :user => credentials[:user], :password => credentials[:password] }
+      end
     end
 
   end

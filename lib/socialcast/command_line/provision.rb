@@ -34,7 +34,7 @@ module Socialcast
       end
 
       def provision
-        http_config = @ldap_config.fetch 'http', {}
+        params = @ldap_config.fetch('http', {}).merge(:external_system => !!@options[:external_system])
 
         user_whitelist = Set.new
         output_file = File.join Dir.pwd, @options[:output]
@@ -56,7 +56,7 @@ module Socialcast
           raise ProvisionError.new "Skipping upload to Socialcast since no users were found"
         else
           puts "Uploading dataset to Socialcast..."
-          resource = Socialcast::CommandLine.resource_for_path '/api/users/provision', http_config
+          resource = Socialcast::CommandLine.resource_for_path '/api/users/provision', params
           begin
             File.open(output_file, 'r') do |file|
               request_params = {:file => file}
@@ -65,7 +65,9 @@ module Socialcast
               resource.post request_params, :accept => :json
             end
           rescue RestClient::Unauthorized => e
-            raise ProvisionError.new "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
+            error_message = @options[:external_system] ? "External Provisioning System was not found." : "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning."
+            contact_message = "Please contact Socialcast support to if you need help."
+            raise ProvisionError.new "#{error_message} #{contact_message}\nResponse from server: #{e.response.body}" if e.http_code == 401
           end
           puts "Finished"
         end
