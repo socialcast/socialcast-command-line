@@ -26,5 +26,4 @@ describe Socialcast::CommandLine::Authenticate do
       it 'hits the API to try authentication for an external system' do end
     end
   end
-
 end

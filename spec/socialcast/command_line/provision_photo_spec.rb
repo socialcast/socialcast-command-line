@@ -27,6 +27,9 @@ describe Socialcast::CommandLine::ProvisionPhoto do
               'avatars' => {
                 'is_community_default' => is_community_default,
                 'data_fingerprint' => data_fingerprint
+              },
+              'contact_info' => {
+                'email' => 'user@example.com'
               }
             }
           ]
@@ -103,25 +106,25 @@ describe Socialcast::CommandLine::ProvisionPhoto do
 
     context "with multiple ldap connections" do
       let(:user_search_resource) { double(:user_search_resource) }
-      let(:search_api_response1) do
+      let(:search_api_response) do
         {
           'users' => [
             {
               'id' => 7,
               'avatars' => {
                 'is_community_default' => true
+              },
+              'contact_info' => {
+                'email' => 'user@example.com'
               }
-            }
-          ]
-        }
-      end
-      let(:search_api_response2) do
-        {
-          'users' => [
+            },
             {
               'id' => 8,
               'avatars' => {
                 'is_community_default' => true
+              },
+              'contact_info' => {
+                'email' => 'user2@example.com'
               }
             }
           ]
@@ -131,6 +134,8 @@ describe Socialcast::CommandLine::ProvisionPhoto do
       let(:sync_photos) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_multiple_connection_mapping_config, {}).sync }
       let(:binary_photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
+        stub_const("Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE", 2)
+
         ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
         ldap_instance1.should_receive(:open).and_yield(ldap_instance1)
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
@@ -145,8 +150,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
 
         Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
-        user_search_resource.should_receive(:get).once.and_return(search_api_response1.to_json)
-        user_search_resource.should_receive(:get).once.and_return(search_api_response2.to_json)
+        user_search_resource.should_receive(:get).once.with({:params=>{:q=>"\"user@example.com\" OR \"user2@example.com\"", :per_page=>Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE}, :accept=>:json}).and_return(search_api_response.to_json)
 
         user_resource1 = double(:user_resource)
         user_resource1.should_receive(:put) do |data|
