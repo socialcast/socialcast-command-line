@@ -19,7 +19,7 @@ module Socialcast
             user_info = JSON.parse(user_search_response)['users'].first
 
             is_community_default = user_info && user_info['avatars'] && user_info['avatars']['is_community_default']
-            return unless is_community_default || @options[:force_sync]
+            next unless is_community_default || @options[:force_sync]
 
             ## PHOTO URL TO BINARY
             if profile_photo_data = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
