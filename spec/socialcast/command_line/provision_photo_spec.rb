@@ -100,6 +100,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
         end
       end
     end
+
     context "with multiple ldap connections" do
       let(:user_search_resource) { double(:user_search_resource) }
       let(:search_api_response1) do
@@ -108,7 +109,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
             {
               'id' => 7,
               'avatars' => {
-                'is_system_default' => true
+                'is_community_default' => true
               }
             }
           ]
@@ -120,7 +121,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
             {
               'id' => 8,
               'avatars' => {
-                'is_system_default' => true
+                'is_community_default' => true
               }
             }
           ]
