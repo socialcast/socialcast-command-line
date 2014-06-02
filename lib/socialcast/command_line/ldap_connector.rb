@@ -118,10 +118,9 @@ module Socialcast
       end
 
       def ldap_user_search_attributes
-        mappings = []
-        attribute_mappings.each_pair do |mapping_key, mapping_value|
-          mappings << mapping_value unless mapping_key == PROFILE_PHOTO_ATTRIBUTE
-        end
+        mappings = attribute_mappings.map do |mapping_key, mapping_value|
+          mapping_value unless mapping_key == PROFILE_PHOTO_ATTRIBUTE
+        end.compact
         attributes = search_attributes(mappings)
         attributes << permission_mappings.fetch('attribute_name', 'memberof')
         attributes.flatten
