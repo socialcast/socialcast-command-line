@@ -298,7 +298,7 @@ module Socialcast
         photo_hash[EMAIL_ATTRIBUTE] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
         photo_hash[PROFILE_PHOTO_ATTRIBUTE] = grab(entry, attribute_mappings[PROFILE_PHOTO_ATTRIBUTE])
 
-        return photo_hash if photo_hash[EMAIL_ATTRIBUTE].present? && photo_hash[PROFILE_PHOTO_ATTRIBUTE].present?
+        return photo_hash if photo_hash[EMAIL_ATTRIBUTE].present? && photo_hash[PROFILE_PHOTO_ATTRIBUTE] && !photo_hash[PROFILE_PHOTO_ATTRIBUTE].empty?
       end
     end
   end

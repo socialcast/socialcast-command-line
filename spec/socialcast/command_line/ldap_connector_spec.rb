@@ -550,6 +550,30 @@ describe Socialcast::CommandLine::LDAPConnector do
         end.not_to yield_control
       end
     end
+
+    context "when the entry has a binary photo with incorrect encoding" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => 'user@example.com', :jpegPhoto => "\x89PNGabc") }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "profile_photo" => "jpegPhoto"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+      end
+      it "does not raise an error" do
+        expect do |blk|
+          connector.each_photo_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'email' => 'user@example.com',
+          'profile_photo' => "\x89PNGabc"
+        }))
+      end
+    end
   end
 
   describe "#fetch_user_hash" do
