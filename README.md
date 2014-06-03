@@ -7,7 +7,7 @@ http://www.socialcast.com/resources/api.html
 
 ## Installing
 
-1. Run: `gem install socialcast-command-line`
+1. Run: `gem install socialcast`
 2. Authenticate: `socialcast authenticate`
 	* If your account is private cloud or On-Premise you will need to use `socialcast authenticate --domain YOUR_DOMAIN_NAME`
 
@@ -37,13 +37,13 @@ Used to sync an LDAP server with your Socialcast community.
 
 [For more detailed information](http://developers.socialcast.com/admin/directory-integration-overview/)
 
-> Example `$ socialcast provision --config /path/ldap.yml`
+> Example `$ socialcast provision --config /path/to/ldap.yml`
 
 ### socialcast sync&#95;photos
 Used to sync an employees photos stored in LDAP with their Socialcast
 profile photo.
 
-> Example `$ socialcast sync_photos --config /path/ldap.yml`
+> Example `$ socialcast sync_photos --config /path/to/ldap.yml`
 
 ## Contributing
 
