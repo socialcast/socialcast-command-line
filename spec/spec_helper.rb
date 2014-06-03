@@ -32,8 +32,8 @@ RSpec.configure do |config|
     return result, exit_status
   end
 
-  def create_entry(entry_attributes)
-    Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
+  def create_entry(cn, entry_attributes)
+    Net::LDAP::Entry.new("cn=#{cn},dc=example,dc=com").tap do |e|
       entry_attributes.each_pair do |attr, value|
         e[attr] = value
       end

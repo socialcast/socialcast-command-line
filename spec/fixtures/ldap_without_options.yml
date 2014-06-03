@@ -1,4 +1,5 @@
----
+--- 
+# LDAP connections
 connections:
   example_connection_1:
     username: "cn=Directory Manager"
@@ -8,17 +9,22 @@ connections:
     basedn: "dc=example,dc=com"
     filter: "(mail=*)"
 
+
 # LDAP attribute mappings
 mappings:
   first_name: givenName
   last_name: sn
   email: mail
-  profile_photo: jpegPhoto
-    
+  # only use employee_number if the email is unknown
+  # employee_number: emp_id
+  # only use unique_identifier if you do not wish to use email as the main user identification method
+  # unique_identifier: samaccountname
+
+
 # Map LDAP Group Memberships to Socialcast Permissions
 permission_mappings:
   # configure LDAP field for group memberships (ex: memberof, isMemberOf, etc)
-  attribute_name: memberof
+  attribute_name: isMemberOf
   account_types:
     external: "cn=External,dc=example,dc=com"
   roles:

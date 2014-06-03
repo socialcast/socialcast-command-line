@@ -46,8 +46,14 @@ describe Socialcast::CommandLine::LDAPConnector do
     }
   end
 
-  def create_entry(entry_attributes)
-    Net::LDAP::Entry.new("dc=example,dc=com").tap do |e|
+  let(:ldap) { double(Net::LDAP, :open => nil, :encryption => nil, :auth => nil) }
+
+  before do
+    Net::LDAP.stub(:new).and_return(ldap)
+  end
+
+  def create_entry(cn, entry_attributes)
+    Net::LDAP::Entry.new("cn=#{cn},dc=example,dc=com").tap do |e|
       entry_attributes.each_pair do |attr, value|
         e[attr] = value
       end
@@ -55,11 +61,11 @@ describe Socialcast::CommandLine::LDAPConnector do
   end
 
   describe "#each_user_hash" do
-    context "without ldap group memberships" do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
+    context "when the entry has an email" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
       before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -76,12 +82,253 @@ describe Socialcast::CommandLine::LDAPConnector do
         }))
       end
     end
+
+    context("when the entry does not have a unique_identifier or email") do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => nil, :givenName => 'first name', :sn => 'last name') }
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it 'does not yield the entry' do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.not_to yield_control
+      end
+    end
+
+    context("when the entry has a unique_identifier") do
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "unique_identifier" => "uid"
+        }
+      end
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name') }
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'unique_identifier' => 'unique identifier',
+          'contact_info' => {},
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
+    context "when the entry has a profile photo" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "profile_photo" => "jpegPhoto"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      end
+      it "does not retrieve the profile photo data from ldap" do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [],
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
+    context "when the entry has a manager" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:employee_entry) { create_entry('user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :manager_dn => 'cn=manager,dc=example,dc=com') }
+      let(:manager_entry) { create_entry('manager', :mail => 'manager@example.com', :givenName => 'manager first name', :sn => 'manager last name') }
+      let(:employee_mail_entry) { create_entry('user', :mail => 'user@example.com') }
+      let(:manager_mail_entry) { create_entry('manager', :mail => 'manager@example.com') }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "manager" => "manager_dn"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['mail']))
+          .and_yield(employee_mail_entry)
+          .and_yield(manager_mail_entry)
+        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf']))
+          .and_yield(employee_entry)
+          .and_yield(manager_entry)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_successive_args(HashWithIndifferentAccess.new({
+          'first_name' => 'first name',
+          'last_name' => 'last name',
+          'contact_info' => {
+            'email' => 'user@example.com',
+          },
+          'custom_fields' => [{
+            "id" => "manager_email",
+            "label" => "manager_email",
+            "value" => "manager@example.com"
+          }],
+          'account_type' => 'member',
+          'roles' => []
+        }),
+        HashWithIndifferentAccess.new({
+          'first_name' => 'manager first name',
+          'last_name' => 'manager last name',
+          'contact_info' => {
+            'email' => 'manager@example.com',
+          },
+          'custom_fields' => [{
+            "id" => "manager_email",
+            "label" => "manager_email",
+            "value" => nil
+          }],
+
+          'account_type' => 'member',
+          'roles' => []
+        }))
+      end
+    end
+
+    context "with multiple manager entries" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:employee_entry1) { create_entry('user1', :mail => 'user1@example.com', :givenName => 'first name1', :sn => 'last name1', :manager_dn => 'cn=manager1,dc=example,dc=com') }
+      let(:employee_entry2) { create_entry('user2', :mail => 'user2@example.com', :givenName => 'first name2', :sn => 'last name2', :manager_dn => 'cn=manager2,dc=example,dc=com') }
+      let(:employee_entry3) { create_entry('user3', :mail => 'user3@example.com', :givenName => 'first name3', :sn => 'last name3', :manager_dn => 'cn=manager1,dc=example,dc=com') }
+      let(:employee_mail_entry1) { create_entry('user1', :mail => 'user1@example.com') }
+      let(:employee_mail_entry2) { create_entry('user2', :mail => 'user2@example.com') }
+      let(:employee_mail_entry3) { create_entry('user3', :mail => 'user3@example.com') }
+      let(:manager_entry1) { create_entry('manager1', :mail => 'manager1@example.com', :givenName => 'manager first name1', :sn => 'manager last name1') }
+      let(:manager_entry2) { create_entry('manager2', :mail => 'manager2@example.com', :givenName => 'manager first name2', :sn => 'manager last name2') }
+      let(:manager_mail_entry1) { create_entry('manager1', :mail => 'manager1@example.com') }
+      let(:manager_mail_entry2) { create_entry('manager2', :mail => 'manager2@example.com') }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "manager" => "manager_dn"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['mail']))
+          .and_yield(employee_mail_entry1)
+          .and_yield(employee_mail_entry2)
+          .and_yield(employee_mail_entry3)
+          .and_yield(manager_mail_entry1)
+          .and_yield(manager_mail_entry2)
+
+        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf']))
+          .and_yield(employee_entry1)
+          .and_yield(employee_entry2)
+          .and_yield(employee_entry3)
+          .and_yield(manager_entry1)
+          .and_yield(manager_entry2)
+      end
+      it do
+        expect do |blk|
+          connector.each_user_hash(&blk)
+        end.to yield_successive_args(HashWithIndifferentAccess.new({
+            'first_name' => 'first name1',
+            'last_name' => 'last name1',
+            'contact_info' => {
+              'email' => 'user1@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => "manager1@example.com"
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          }),
+          HashWithIndifferentAccess.new({
+            'first_name' => 'first name2',
+            'last_name' => 'last name2',
+            'contact_info' => {
+              'email' => 'user2@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => "manager2@example.com"
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          }),
+          HashWithIndifferentAccess.new({
+            'first_name' => 'first name3',
+            'last_name' => 'last name3',
+            'contact_info' => {
+              'email' => 'user3@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => "manager1@example.com"
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          }),
+          HashWithIndifferentAccess.new({
+            'first_name' => 'manager first name1',
+            'last_name' => 'manager last name1',
+            'contact_info' => {
+              'email' => 'manager1@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => nil
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          }),
+          HashWithIndifferentAccess.new({
+            'first_name' => 'manager first name2',
+            'last_name' => 'manager last name2',
+            'contact_info' => {
+              'email' => 'manager2@example.com',
+            },
+            'custom_fields' => [{
+              "id" => "manager_email",
+              "label" => "manager_email",
+              "value" => nil
+            }],
+            'account_type' => 'member',
+            'roles' => []
+          })
+        )
+      end
+    end
+
     context "with attribute mappings at the connection level" do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       before do
         connection.merge!({ "mappings" => { "email" => "mailConnection" } })
-        entry = create_entry :mailConnection => 'user@example.com'
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['mailConnection', 'isMemberOf'])).and_yield(entry)
+        entry = create_entry 'user', :mailConnection => 'user@example.com'
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mailConnection', 'isMemberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -97,7 +344,7 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
     context "with permission mappings at the connection level" do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=BizAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
       before do
         connection.merge!({
@@ -113,8 +360,8 @@ describe Socialcast::CommandLine::LDAPConnector do
             }
           }
         })
-        entry = create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ldap_groups
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry)
+        entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ldap_groups
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -132,15 +379,15 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
     context "with external ldap group memberships" do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       let(:entry) do
-        create_entry(:mail => 'user@example.com',
+        create_entry('user', :mail => 'user@example.com',
           :givenName => 'first name',
           :sn => 'last name',
           :isMemberOf => ["cn=External,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"])
       end
       before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it "sets the account_type to 'external' and does not include roles" do
         expect do |blk|
@@ -157,15 +404,15 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
     context "with role ldap group memberships" do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       let(:entry) do
-        create_entry(:mail => 'user@example.com',
+        create_entry('user', :mail => 'user@example.com',
           :givenName => 'first name',
           :sn => 'last name',
           :isMemberOf => ["cn=TownHallAdmins,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com"])
       end
       before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it "sets the account_type to 'member' and includes roles" do
         expect do |blk|
@@ -189,37 +436,34 @@ describe Socialcast::CommandLine::LDAPConnector do
           "unique_identifier" => "gid"
         }
       end
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       let(:group_entry1) do
-        create_entry(:dn => "cn=Sales,dc=example,dc=com", :gid => "sales_group_id")
+        create_entry('group1', :dn => "cn=Sales,dc=example,dc=com", :gid => "sales_group_id")
       end
       let(:group_entry2) do
-        create_entry(:dn => "cn=IT,dc=example,dc=com", :gid => "it_group_id")
+        create_entry('group2', :dn => "cn=IT,dc=example,dc=com", :gid => "it_group_id")
       end
       let(:group_entry3) do
-        create_entry(:dn => "cn=SFOffice,dc=example,dc=com", :gid => "sf_office_group_id")
+        create_entry('group3', :dn => "cn=SFOffice,dc=example,dc=com", :gid => "sf_office_group_id")
       end
       let(:user_entry) do
-        create_entry(:mail => 'user@example.com',
+        create_entry('user', :mail => 'user@example.com',
           :givenName => 'first name',
           :sn => 'last name',
           :isMemberOf => ["cn=SFOffice,dc=example,dc=com", "cn=Sales,dc=example,dc=com"])
       end
       before do
-        ldap_instance = double(Net::LDAP, :auth => nil)
-        Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
-
-        ldap_instance.should_receive(:search).once.ordered.with(
-          :return_result => false,
-          :filter => "(mail=*)",
-          :base => "dc=example,dc=com",
-          :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']).and_yield(user_entry)
-
-        ldap_instance.should_receive(:search).once.ordered.with(
+        ldap.should_receive(:search).once.ordered.with(
           :return_result => false,
           :filter => "(objectClass=groupOfUniqueNames)",
           :base => "dc=example,dc=com",
           :attributes => ["gid"]).and_yield(group_entry1).and_yield(group_entry2).and_yield(group_entry3)
+
+        ldap.should_receive(:search).once.ordered.with(
+          :return_result => false,
+          :filter => "(mail=*)",
+          :base => "dc=example,dc=com",
+          :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']).and_yield(user_entry)
       end
       it "includes group memberships" do
         expect do |blk|
@@ -239,48 +483,95 @@ describe Socialcast::CommandLine::LDAPConnector do
     end
   end
 
-  describe "#each_ldap_entry" do
-    context("when the entry has an email") do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
-      before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
-      end
-      it do
-        expect do |blk|
-          connector.each_ldap_entry(&blk)
-        end.to yield_with_args(entry)
-      end
-    end
-    context("when the entry has a unique_identifier") do
+  describe "#each_photo_hash" do
+    context "when the entry has an email and photo" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => 'user@example.com', :jpegPhoto => "photo") }
       let(:mappings) do
         {
           "first_name" => "givenName",
           "last_name" => "sn",
-          "unique_identifier" => "uid"
+          "email" => "mail",
+          "profile_photo" => "jpegPhoto"
         }
       end
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:uid => 'unique identifier', :givenName => 'first name', :sn => 'last name') }
       before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
       end
       it do
         expect do |blk|
-          connector.each_ldap_entry(&blk)
-        end.to yield_with_args(entry)
+          connector.each_photo_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'email' => 'user@example.com',
+          'profile_photo' => "photo"
+        }))
       end
     end
-    context("when the entry does not have a unique_identifier or email") do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry(:mail => nil, :givenName => 'first name', :sn => 'last name') }
-      before do
-        Net::LDAP.any_instance.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+    context "when the entry does not have an email" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => '', :jpegPhoto => "photo") }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "unique_identifief" => "uid",
+          "profile_photo" => "jpegPhoto"
+        }
       end
-      it 'does not yield the entry' do
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+      end
+      it 'does not yield' do
         expect do |blk|
-          connector.each_ldap_entry(&blk)
+          connector.each_photo_hash(&blk)
         end.not_to yield_control
+      end
+    end
+
+    context "when the entry does not have a photo" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => 'user@example.com', :jpegPhoto => "") }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "unique_identifief" => "uid",
+          "profile_photo" => "jpegPhoto"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+      end
+      it 'does not yield' do
+        expect do |blk|
+          connector.each_photo_hash(&blk)
+        end.not_to yield_control
+      end
+    end
+
+    context "when the entry has a binary photo with incorrect encoding" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry('user', :mail => 'user@example.com', :jpegPhoto => "\x89PNGabc") }
+      let(:mappings) do
+        {
+          "first_name" => "givenName",
+          "last_name" => "sn",
+          "email" => "mail",
+          "profile_photo" => "jpegPhoto"
+        }
+      end
+      before do
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+      end
+      it "does not raise an error" do
+        expect do |blk|
+          connector.each_photo_hash(&blk)
+        end.to yield_with_args(HashWithIndifferentAccess.new({
+          'email' => 'user@example.com',
+          'profile_photo' => "\x89PNGabc"
+        }))
       end
     end
   end
@@ -294,11 +585,11 @@ describe Socialcast::CommandLine::LDAPConnector do
           "unique_identifier" => "uid"
         }
       end
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name' }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry 'user', :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name' }
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(uid=unique identifier))')
-        Net::LDAP.any_instance.should_receive(:search).once
+        ldap.should_receive(:search).once
           .with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
@@ -315,11 +606,11 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
     context "specifying an identifying field" do
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(mail=user@example.com))')
-        Net::LDAP.any_instance.should_receive(:search).once
+        ldap.should_receive(:search).once
           .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
@@ -339,11 +630,11 @@ describe Socialcast::CommandLine::LDAPConnector do
 
     context "without a filter specified" do
       let(:filter) { "" }
-      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
-      let(:entry) { create_entry :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
+      let(:entry) { create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
       before do
         filter = Net::LDAP::Filter.construct('(&(objectclass=*)(mail=user@example.com))')
-        Net::LDAP.any_instance.should_receive(:search).once
+        ldap.should_receive(:search).once
           .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
@@ -362,27 +653,6 @@ describe Socialcast::CommandLine::LDAPConnector do
     end
   end
 
-  describe '#dereference_mail' do
-    context "called on directreport entry" do
-      let(:entry) do
-        Net::LDAP::Entry.new("cn=directreport,dc=example,dc=com").tap do |e|
-          e[:mail] = 'directreport@example.com'
-          e[:manager] = 'cn=bossman,dc=example,dc=com'
-        end
-      end
-      let(:ldap) { double(Net::LDAP, :encryption => nil, :auth => nil) }
-      before do
-        Net::LDAP.should_receive(:new).and_return(ldap)
-        manager_entry = Net::LDAP::Entry.new("cn=bossman,dc=example,dc=com")
-        manager_entry[:mail] = 'bossman@example.com'
-        ldap.should_receive(:search).with(:base => "cn=bossman,dc=example,dc=com", :scope => 0).and_yield(manager_entry)
-      end
-      it "will return bossman email" do
-        Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config).send(:dereference_mail, entry, 'manager', 'mail').should == "bossman@example.com"
-      end
-    end
-  end
-
   describe "#grab" do
     let(:mappings) do
       {
@@ -391,7 +661,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         "email" => "mail"
       }
     end
-    let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+    let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
     let(:entry) do
       Net::LDAP::Entry.new("cn=sean,dc=example,dc=com").tap do |e|
         e[:mail] = 'sean@example.com'

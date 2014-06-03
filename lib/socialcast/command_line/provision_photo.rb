@@ -5,13 +5,13 @@ module Socialcast
     class ProvisionPhoto
       include Socialcast::CommandLine::Provisioner
       def sync
+        @ldap_config['connections'].keys.each do |connection_name|
+          LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).fetch(LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
+        end
+
         each_ldap_connector do |connector|
-
-          connector.attribute_mappings.fetch('profile_photo')
-
-          each_ldap_entry do |entry|
-            attr_mappings = connector.attribute_mappings
-            email = connector.grab(entry, attr_mappings['email'])
+          connector.each_photo_hash do |photo_hash|
+            email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
 
             ## GET USER INFO
             search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
@@ -19,10 +19,10 @@ module Socialcast
             user_info = JSON.parse(user_search_response)['users'].first
 
             is_community_default = user_info && user_info['avatars'] && user_info['avatars']['is_community_default']
-            return unless is_community_default || @options[:force_sync]
+            next unless is_community_default || @options[:force_sync]
 
             ## PHOTO URL TO BINARY
-            if profile_photo_data = connector.grab(entry, attr_mappings['profile_photo'])
+            if profile_photo_data = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
               if profile_photo_data.start_with?('http')
                 begin
                   profile_photo_data = RestClient.get(profile_photo_data)

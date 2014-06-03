@@ -36,7 +36,7 @@ module Socialcast
             export.users(:type => "array") do |users|
               each_user_hash do |user_hash|
                 users << user_hash.to_xml(:skip_instruct => true, :root => 'user')
-                user_whitelist << [user_hash['contact_info']['email'], user_hash['unique_identifier'], user_hash['employee_number']]
+                user_whitelist << [user_hash['contact_info'][LDAPConnector::EMAIL_ATTRIBUTE], user_hash[LDAPConnector::UNIQUE_IDENTIFIER_ATTRIBUTE], user_hash['employee_number']]
               end
             end # users
           end # export
@@ -50,8 +50,8 @@ module Socialcast
           begin
             File.open(output_file, 'r') do |file|
               request_params = {:file => file}
-              request_params[:skip_emails] = 'true' if (@ldap_config['options']["skip_emails"] || @options[:skip_emails])
-              request_params[:test] = 'true' if (@ldap_config['options']["test"] || @options[:test])
+              request_params[:skip_emails] = 'true' if (@ldap_config.fetch('options', {})["skip_emails"] || @options[:skip_emails])
+              request_params[:test] = 'true' if (@ldap_config.fetch('options', {})["test"] || @options[:test])
               resource.post request_params, :accept => :json
             end
           rescue RestClient::Unauthorized => e
@@ -59,7 +59,7 @@ module Socialcast
           end
           puts "Finished"
         end
-        File.delete(output_file) if (@ldap_config['options']['delete_users_file'] || @options[:delete_users_file])
+        File.delete(output_file) if (@ldap_config.fetch('options', {})['delete_users_file'] || @options[:delete_users_file])
       end
     end
   end
