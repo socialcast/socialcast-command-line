@@ -12,7 +12,14 @@ module Socialcast
 
         init_users
 
-        build_users_array
+        ## BUILD USERS ARRAY
+        each_ldap_connector do |connector|
+          connector.each_photo_hash do |photo_hash|
+            email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
+            users[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
+            handle_batch if users.size >= MAX_BATCH_SIZE
+          end
+        end
 
         handle_batch if users.any?
       end
@@ -21,16 +28,6 @@ module Socialcast
 
       def init_users
         @users = {}
-      end
-
-      def build_users_array
-        each_ldap_connector do |connector|
-          connector.each_photo_hash do |photo_hash|
-            email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
-            users[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
-            handle_batch if users.size >= MAX_BATCH_SIZE
-          end
-        end
       end
 
       def handle_batch
