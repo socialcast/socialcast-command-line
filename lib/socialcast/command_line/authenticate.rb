@@ -10,6 +10,13 @@ module Socialcast
         self.headers = headers
       end
 
+      def self.current_user
+        @current_user ||= begin
+                            response = Socialcast::CommandLine.resource_for_path('/api/userinfo.json').get
+                            JSON.parse(response.body)['user']
+                          end
+      end
+
       def request
         @request ||= send_request
       end

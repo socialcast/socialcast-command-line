@@ -11,9 +11,12 @@ describe Socialcast::CommandLine::CLI do
   let(:ldap_with_plugin_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_plugin_mapping.yml')) }
   let(:ldap_with_profile_photo_config) { YAML.load_file(ldap_with_profile_photo_config_file) }
   let(:ldap_without_permission_mappings_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_permission_mappings.yml')) }
+  let(:default_profile_photo_id) { 3 }
+  let(:random_profile_photo_id) { 4 }
 
   before do
     Socialcast::CommandLine.stub(:credentials).and_return(credentials)
+    Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(default_profile_photo_id)
   end
 
   let(:ldap) do
@@ -155,7 +158,6 @@ describe Socialcast::CommandLine::CLI do
 
     context "user does not have a profile photo" do
       let(:config_file) { ldap_with_profile_photo_config_file }
-      let(:system_default_photo) { true }
       let(:photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
@@ -169,7 +171,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_community_default' => system_default_photo
+                'id' => default_profile_photo_id
               },
               'contact_info' => {
                 'email' => 'ryan@example.com'
@@ -195,7 +197,6 @@ describe Socialcast::CommandLine::CLI do
 
     context "unknown image format" do
       let(:config_file) { ldap_with_profile_photo_config_file }
-      let(:system_default_photo) { true }
       let(:photo_data) { "abc" }
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
@@ -209,7 +210,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_community_default' => system_default_photo
+                'id' => default_profile_photo_id
               }
             }
           ]
@@ -228,7 +229,6 @@ describe Socialcast::CommandLine::CLI do
 
     context "user already has a profile photo" do
       let(:config_file) { ldap_with_profile_photo_config_file }
-      let(:system_default_photo) { false }
       let(:photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
@@ -242,7 +242,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'is_community_default' => system_default_photo
+                'id' => random_profile_photo_id
               }
             }
           ]

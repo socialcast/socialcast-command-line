@@ -26,4 +26,25 @@ describe Socialcast::CommandLine::Authenticate do
       it 'hits the API to try authentication for an external system' do end
     end
   end
+
+  describe '.current_user' do
+    subject(:current_user) { Socialcast::CommandLine::Authenticate.current_user }
+    context 'as an unauthenticated user' do
+      it { expect { current_user }.to raise_error(RuntimeError, 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize') }
+    end
+    context 'as an authenticated user' do
+      let(:stubbed_config_dir) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures') }
+      let(:current_user_stub) do
+        {
+          :user => { :id => 123 }
+        }
+      end
+      before do
+        Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_config_dir)
+        stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
+          to_return(:status => 200, :body => current_user_stub.to_json)
+      end
+      it { current_user['id'].should == 123 }
+    end
+  end
 end
