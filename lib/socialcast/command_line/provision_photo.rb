@@ -12,7 +12,6 @@ module Socialcast
 
         init_users
 
-        ## BUILD USERS ARRAY
         each_ldap_connector do |connector|
           connector.each_photo_hash do |photo_hash|
             email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
