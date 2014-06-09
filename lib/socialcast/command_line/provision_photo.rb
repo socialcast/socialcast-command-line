@@ -33,7 +33,7 @@ module Socialcast
         users.each_slice(MAX_BATCH_SIZE) do |user_batch|
           search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
           user_emails_query = user_batch.map { |u| "\"#{u[0]}\"" }.join(" OR ")
-          user_search_response = search_users_resource.get(:params => { :q => user_emails_query, :per_page => MAX_BATCH_SIZE, :body => 'content' }, :accept => :json)
+          user_search_response = search_users_resource.get(:params => { :q => user_emails_query, :per_page => MAX_BATCH_SIZE }, :accept => :json)
           JSON.parse(user_search_response)['users'].each do |user_hash|
             sync_photo_for(user_hash)
           end

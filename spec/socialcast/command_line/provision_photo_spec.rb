@@ -150,7 +150,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
 
         Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
-        user_search_resource.should_receive(:get).once.with({ :params => { :q => "\"user@example.com\" OR \"user2@example.com\"", :per_page => Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE, :body => 'content' }, :accept => :json }).and_return(search_api_response.to_json)
+        user_search_resource.should_receive(:get).once.with({:params=>{:q=>"\"user@example.com\" OR \"user2@example.com\"", :per_page=>Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE}, :accept=>:json}).and_return(search_api_response.to_json)
 
         user_resource1 = double(:user_resource)
         user_resource1.should_receive(:put) do |data|
