@@ -170,6 +170,9 @@ describe Socialcast::CommandLine::CLI do
               'id' => 7,
               'avatars' => {
                 'is_community_default' => system_default_photo
+              },
+              'contact_info' => {
+                'email' => 'ryan@example.com'
               }
             }
           ]
