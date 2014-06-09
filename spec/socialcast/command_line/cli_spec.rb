@@ -12,7 +12,7 @@ describe Socialcast::CommandLine::CLI do
   let(:ldap_with_profile_photo_config) { YAML.load_file(ldap_with_profile_photo_config_file) }
   let(:ldap_without_permission_mappings_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_without_permission_mappings.yml')) }
   let(:default_profile_photo_id) { 3 }
-  let(:random_profile_photo_id) { 4 }
+  let(:another_profile_photo_id) { 4 }
 
   before do
     Socialcast::CommandLine.stub(:credentials).and_return(credentials)
@@ -242,7 +242,7 @@ describe Socialcast::CommandLine::CLI do
             {
               'id' => 7,
               'avatars' => {
-                'id' => random_profile_photo_id
+                'id' => another_profile_photo_id
               }
             }
           ]

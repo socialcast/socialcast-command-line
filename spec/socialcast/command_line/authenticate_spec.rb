@@ -29,22 +29,31 @@ describe Socialcast::CommandLine::Authenticate do
 
   describe '.current_user' do
     subject(:current_user) { Socialcast::CommandLine::Authenticate.current_user }
+    after do
+      Socialcast::CommandLine::Authenticate.instance_variable_set(:@current_user, nil)
+    end
     context 'as an unauthenticated user' do
       it { expect { current_user }.to raise_error(RuntimeError, 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize') }
     end
-    context 'as an authenticated user' do
+    context 'with credentials specified out' do
       let(:stubbed_config_dir) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures') }
-      let(:current_user_stub) do
-        {
-          :user => { :id => 123 }
-        }
+      let(:current_user_stub) { { :user => { :id => 123 } } }
+      let(:current_user_error) { { :error => "Failed to authenticate due to password" } }
+      before { Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_config_dir) }
+      context 'as a successfull authenticated user' do
+        before do
+          stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
+            to_return(:status => 200, :body => current_user_stub.to_json)
+        end
+        it { current_user['id'].should == 123 }
       end
-      before do
-        Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_config_dir)
-        stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
-          to_return(:status => 200, :body => current_user_stub.to_json)
+      context 'when you not authenticated properly' do
+        before do
+          stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
+            to_return(:status => 200, :body => current_user_error.to_json)
+        end
+        it { expect { current_user }.to raise_error(RuntimeError) }
       end
-      it { current_user['id'].should == 123 }
     end
   end
 end

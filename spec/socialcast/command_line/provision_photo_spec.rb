@@ -4,7 +4,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
   let!(:ldap_with_profile_photo_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
   let(:default_profile_photo_id) { 3 }
-  let(:random_profile_photo_id) { 4 }
+  let(:another_profile_photo_id) { 4 }
 
   before do
     Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(default_profile_photo_id)
@@ -87,7 +87,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
 
       context 'when there is already a photo set' do
         before do
-          Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(random_profile_photo_id)
+          Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(another_profile_photo_id)
         end
         let(:photo_data) { "\x89PNGabc" }
         before { user_search_resource.should_receive(:get).and_return(search_api_response.to_json) }
