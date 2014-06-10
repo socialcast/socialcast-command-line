@@ -3,6 +3,12 @@ require 'spec_helper'
 describe Socialcast::CommandLine::ProvisionPhoto do
   let!(:ldap_with_profile_photo_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+  let(:default_profile_photo_id) { 3 }
+  let(:another_profile_photo_id) { 4 }
+
+  before do
+    Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(default_profile_photo_id)
+  end
 
   let(:ldap) do
     ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
@@ -11,13 +17,12 @@ describe Socialcast::CommandLine::ProvisionPhoto do
     ldap_instance
   end
 
-  context '#sync' do
+  describe '#sync' do
     context "with a single ldap connection" do
       let(:options) { {} }
       subject(:sync_photos) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_with_profile_photo_config, options).sync }
       let(:user_search_resource) { double(:user_search_resource) }
       let(:user_submit_resource) { double(:user_submit_resource) }
-      let(:is_community_default) { true }
       let(:data_fingerprint) { '5d41402abc4b2a76b9719d911017c592' }
       let(:search_api_response) do
         {
@@ -25,8 +30,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
             {
               'id' => 7,
               'avatars' => {
-                'is_community_default' => is_community_default,
-                'data_fingerprint' => data_fingerprint
+                'id' => default_profile_photo_id
               },
               'contact_info' => {
                 'email' => 'user@example.com'
@@ -82,7 +86,9 @@ describe Socialcast::CommandLine::ProvisionPhoto do
       end
 
       context 'when there is already a photo set' do
-        let(:is_community_default) { false }
+        before do
+          Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(another_profile_photo_id)
+        end
         let(:photo_data) { "\x89PNGabc" }
         before { user_search_resource.should_receive(:get).and_return(search_api_response.to_json) }
         context 'for a regular sync' do
@@ -112,7 +118,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
             {
               'id' => 7,
               'avatars' => {
-                'is_community_default' => true
+                'id' => default_profile_photo_id
               },
               'contact_info' => {
                 'email' => 'user@example.com'
@@ -121,7 +127,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
             {
               'id' => 8,
               'avatars' => {
-                'is_community_default' => true
+                'id' => default_profile_photo_id
               },
               'contact_info' => {
                 'email' => 'user2@example.com'
@@ -172,7 +178,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
     end
   end
 
-  context '.binary_to_content_type' do
+  describe '.binary_to_content_type' do
     subject { Socialcast::CommandLine::ProvisionPhoto.new(ldap_with_profile_photo_config, {}).send(:binary_to_content_type, binary_photo_data) }
     let(:file_dir) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'test_images') }
     let(:binary_photo_data) { File.open(File.join(file_dir, image_name), 'rb') { |file| file.read } }

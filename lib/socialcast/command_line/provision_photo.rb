@@ -43,9 +43,10 @@ module Socialcast
       end
 
       def sync_photo_for(user_hash)
-        is_community_default = user_hash && user_hash['avatars'] && user_hash['avatars']['is_community_default']
+        is_system_default = user_hash && user_hash['avatars'] && user_hash['avatars']['is_system_default']
+        is_community_default = user_hash && user_hash['avatars'] && (user_hash['avatars']['id'] == default_profile_photo_id)
         user_email = user_hash && user_hash['contact_info'] && user_hash['contact_info']['email']
-        return unless is_community_default || @options[:force_sync]
+        return unless is_system_default || is_community_default || @options[:force_sync]
 
         ## PHOTO URL TO BINARY
         if profile_photo_data = users[user_email]
@@ -84,6 +85,10 @@ module Socialcast
             tempfile.unlink
           end
         end
+      end
+
+      def default_profile_photo_id
+        @default_profile_photo_id ||= Socialcast::CommandLine::Authenticate.current_user['community']['default_profile_photo_id']
       end
 
       def binary_to_content_type(binary_photo_data)

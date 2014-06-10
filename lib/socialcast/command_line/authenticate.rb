@@ -10,6 +10,20 @@ module Socialcast
         self.headers = headers
       end
 
+      def self.current_user
+        @current_user ||= find_current_user
+      end
+
+      def self.find_current_user
+        response = Socialcast::CommandLine.resource_for_path('/api/userinfo.json').get
+        json_body = JSON.parse(response.body)
+        if json_body['user']
+          json_body['user']
+        else
+          raise "Unable to find the current user: #{response.body}"
+        end
+      end
+
       def request
         @request ||= send_request
       end
