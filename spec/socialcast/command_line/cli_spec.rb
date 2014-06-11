@@ -47,24 +47,40 @@ describe Socialcast::CommandLine::CLI do
   describe '#authenticate' do
     let(:user) { 'mike@socialcast.com' }
     let(:password) { 'password' }
-    let(:domain) { 'api.socialcast.com' }
+    let(:default_domain) { 'api.socialcast.com' }
+    let(:first_tenant_domain) { 'test1.socialcast.com' }
+    let(:second_tenant_domain) { 'test2.socialcast.com' }
     before do
       Socialcast::CommandLine.should_receive(:credentials=).with({
-        :domain => 'api.socialcast.com',
+        :domain => default_domain,
         :proxy => nil
       })
       Socialcast::CommandLine.should_receive(:credentials=).with({
         :user => user,
         :password => password,
-        :domain => domain
+        :domain => domain_to_set
       })
-      stub_request(:post, "https://api.socialcast.com/api/authentication").
+      stub_request(:post, "https://#{default_domain}/api/authentication").
          with(:body => {"email"=>"mike@socialcast.com", "password"=>"password"}).
-         to_return(:status => 200, :body => { :communities => [{ :domain => domain }] }.to_json, :headers => {})
-      Socialcast::CommandLine::CLI.start ['authenticate', "--user=#{user}", "--password=#{password}"]
+         to_return(:status => 200, :body => { :communities => [ { :domain => first_tenant_domain }, { :domain => second_tenant_domain }] }.to_json, :headers => {})
     end
-    ## See expectations
-    it 'authenticates with the API and sets the given credentials' do end
+    context 'when passed a domain directly' do
+      let(:domain_to_set) { second_tenant_domain }
+      let(:default_domain) { second_tenant_domain }
+      before do
+        Socialcast::CommandLine::CLI.start ['authenticate', "--user=#{user}", "--password=#{password}", "--domain=#{second_tenant_domain}"]
+      end
+       #See expectations
+      it 'authenticates with the API and sets the domain to the domain passed as an option' do end
+    end
+    context 'when not passed a domain it chooses the first domain returned from the response' do
+      let(:domain_to_set) { first_tenant_domain }
+      before do
+        Socialcast::CommandLine::CLI.start ['authenticate', "--user=#{user}", "--password=#{password}"]
+      end
+      ## See expectations
+      it 'authenticates with the API and sets the domain to the first domain returned' do end
+    end
   end
 
   describe '#authenticate_external_system' do

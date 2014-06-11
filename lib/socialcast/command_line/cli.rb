@@ -53,7 +53,7 @@ module Socialcast
         params = { :email => user, :password => password }
         response = Socialcast::CommandLine::Authenticate.new(:user, options, params).request
         communities = JSON.parse(response.body.to_s)['communities']
-        domain = communities.detect {|c| c['domain'] == domain} ? domain : communities.first['domain']
+        domain = communities.detect { |c| c['domain'] == options[:domain] } ? options[:domain] : communities.first['domain']
 
         Socialcast::CommandLine.credentials = {
           :user => user,
