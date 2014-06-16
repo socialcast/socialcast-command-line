@@ -455,15 +455,15 @@ describe Socialcast::CommandLine::LDAPConnector do
       before do
         ldap.should_receive(:search).once.ordered.with(
           :return_result => false,
-          :filter => "(objectClass=groupOfUniqueNames)",
-          :base => "dc=example,dc=com",
-          :attributes => ["gid"]).and_yield(group_entry1).and_yield(group_entry2).and_yield(group_entry3)
-
-        ldap.should_receive(:search).once.ordered.with(
-          :return_result => false,
           :filter => "(mail=*)",
           :base => "dc=example,dc=com",
           :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']).and_yield(user_entry)
+
+        ldap.should_receive(:search).once.ordered.with(
+          :return_result => false,
+          :filter => "(objectClass=groupOfUniqueNames)",
+          :base => "dc=example,dc=com",
+          :attributes => ["gid"]).and_yield(group_entry1).and_yield(group_entry2).and_yield(group_entry3)
       end
       it "includes group memberships" do
         expect do |blk|
