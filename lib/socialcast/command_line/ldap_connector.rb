@@ -74,6 +74,8 @@ module Socialcast
         @attribute_mappings ||= LDAPConnector.attribute_mappings_for(@connection_name, @config)
       end
 
+      private
+
       # grab a *single* value of an attribute
       # abstracts away ldap multivalue attributes
       def grab(entry, attribute)
@@ -98,8 +100,6 @@ module Socialcast
           end
         end
       end
-
-      private
 
       def root_namingcontexts
         @root_naming_contexts ||= Array.wrap(@ldap.search_root_dse.namingcontexts)

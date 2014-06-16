@@ -670,12 +670,12 @@ describe Socialcast::CommandLine::LDAPConnector do
     let(:ldap_instance) { double(Net::LDAP, :encryption => nil, :auth => nil) }
     context "passed hash for attribute" do
       it "returns a string that used defined string template" do
-        connector.grab(entry, { "value" => "123%{mail}", "mail" => "mail" }).should == "123sean@example.com"
+        connector.send(:grab, entry, { "value" => "123%{mail}", "mail" => "mail" }).should == "123sean@example.com"
       end
     end
     context "passed string for attribute" do
       it "returns exact string stored in entry" do
-        connector.grab(entry, "mail").should == "sean@example.com"
+        connector.send(:grab, entry, "mail").should == "sean@example.com"
       end
     end
     context "passed string that can be constantized and the resulting Class responds to run" do
@@ -687,7 +687,7 @@ describe Socialcast::CommandLine::LDAPConnector do
             end
           end
         end
-        connector.grab(entry, "Socialcast::CommandLine::FakeAttributeMap").should == "sebn@exbmple.com"
+        connector.send(:grab, entry, "Socialcast::CommandLine::FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
     context "passed string that must be classified and the resulting Class responds to run" do
@@ -699,7 +699,7 @@ describe Socialcast::CommandLine::LDAPConnector do
             end
           end
         end
-        connector.grab(entry, "socialcast/command_line/fake_attribute_map").should == "sebn@exbmple.com"
+        connector.send(:grab, entry, "socialcast/command_line/fake_attribute_map").should == "sebn@exbmple.com"
       end
     end
     context "attribute passed has a collision between string and Class" do
@@ -714,7 +714,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         Object.send(:remove_const, :Mail)
       end
       it "returns the result of the Class run method" do
-        connector.grab(entry, "mail").should == "sebn@exbmple.com"
+        connector.send(:grab, entry, "mail").should == "sebn@exbmple.com"
       end
     end
     context "attribute passed constantizes to a module instead of a class" do
@@ -724,7 +724,7 @@ describe Socialcast::CommandLine::LDAPConnector do
             return "#{entry[:mail].first.gsub(/a/,'b')}"
           end
         end
-        connector.grab(entry, "FakeAttributeMap").should == "sebn@exbmple.com"
+        connector.send(:grab, entry, "FakeAttributeMap").should == "sebn@exbmple.com"
       end
     end
   end
