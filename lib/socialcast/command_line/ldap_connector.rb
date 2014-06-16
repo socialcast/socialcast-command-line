@@ -101,6 +101,10 @@ module Socialcast
 
       private
 
+      def root_namingcontexts
+        @root_naming_contexts ||= Array.wrap(@ldap.search_root_dse.namingcontexts)
+      end
+
       def each_ldap_entry(attributes)
         search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => attributes) do |entry|
           if grab(entry, attribute_mappings[EMAIL_ATTRIBUTE]).present? || (attribute_mappings.has_key?(UNIQUE_IDENTIFIER_ATTRIBUTE) && grab(entry, attribute_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]).present?)
@@ -159,8 +163,7 @@ module Socialcast
         options_for_search = if search_options[:base].present?
                                Array.wrap(search_options)
                              else
-                               distinguished_names = Array.wrap(@ldap.search_root_dse.namingcontexts)
-                               options_for_search = distinguished_names.map { |dn| search_options.merge(:base => dn ) }
+                               options_for_search = root_namingcontexts.map { |dn| search_options.merge(:base => dn ) }
                              end
 
         options_for_search.each do |options|
