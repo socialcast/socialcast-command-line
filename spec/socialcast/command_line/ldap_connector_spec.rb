@@ -482,7 +482,7 @@ describe Socialcast::CommandLine::LDAPConnector do
       end
     end
 
-    context "calling when the connection has already been opened" do
+    context "calling when a search is already being performed" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config, ldap) }
       before do
         ldap.should_receive(:search).and_yield(create_entry('user', :mail => 'user@example.com'))
