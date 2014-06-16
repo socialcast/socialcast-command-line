@@ -39,8 +39,8 @@ module Socialcast
       end
 
       def each_user_hash
-        @group_unique_identifiers ||= fetch_group_unique_identifiers
-        @dn_to_email_hash ||= fetch_dn_to_email_hash
+        fetch_group_unique_identifiers
+        fetch_dn_to_email_hash
 
         each_ldap_entry(ldap_user_search_attributes) do |entry|
           yield build_user_hash_from_mappings(entry)
@@ -202,30 +202,34 @@ module Socialcast
       end
 
       def fetch_group_unique_identifiers
-        return {} unless group_membership_mappings.present?
+        @group_unique_identifiers ||= if group_membership_mappings.present?
+                                        {}.tap do |groups|
+                                          search_options = {
+                                            :return_result => false,
+                                            :filter => group_membership_mappings["filter"],
+                                            :base => connection_config["basedn"],
+                                            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]]
+                                          }
 
-        {}.tap do |groups|
-          search_options = {
-            :return_result => false,
-            :filter => group_membership_mappings["filter"],
-            :base => connection_config["basedn"],
-            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]]
-          }
-
-          search(search_options) do |entry|
-            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE])
-          end
-        end
+                                          search(search_options) do |entry|
+                                            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE])
+                                          end
+                                        end
+                                      else
+                                        {}
+                                      end
       end
 
       def fetch_dn_to_email_hash
-        return {} unless attribute_mappings[MANAGER_ATTRIBUTE].present?
-
-        {}.tap do |dn_to_email_hash|
-          each_ldap_entry(ldap_mail_search_attributes) do |entry|
-            dn_to_email_hash[entry.dn] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
-          end
-        end
+        @dn_to_email_hash ||= if attribute_mappings[MANAGER_ATTRIBUTE].present?
+                                {}.tap do |dn_to_email_hash|
+                                  each_ldap_entry(ldap_mail_search_attributes) do |entry|
+                                    dn_to_email_hash[entry.dn] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
+                                  end
+                                end
+                              else
+                                {}
+                              end
       end
 
       def add_primary_attributes(entry, user_hash)
