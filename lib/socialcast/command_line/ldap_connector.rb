@@ -5,6 +5,8 @@ require 'active_support/core_ext/array/wrap'
 module Socialcast
   module CommandLine
     class LDAPConnector
+      class ConcurrentSearchError < StandardError; end
+
       UNIQUE_IDENTIFIER_ATTRIBUTE = "unique_identifier"
       EMAIL_ATTRIBUTE = "email"
       MANAGER_ATTRIBUTE = "manager"
@@ -160,6 +162,8 @@ module Socialcast
       end
 
       def search(search_options)
+        raise ConcurrentSearchError.new "Cannot perform concurrent searches on an open ldap connection" if @search_in_progress
+
         options_for_search = if search_options[:base].present?
                                Array.wrap(search_options)
                              else
@@ -167,9 +171,13 @@ module Socialcast
                              end
 
         options_for_search.each do |options|
+          @search_in_progress = true
+
           @ldap.search(options) do |entry|
             yield(entry)
           end
+
+          @search_in_progress = false
         end
       end
 
