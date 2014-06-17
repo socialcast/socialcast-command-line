@@ -16,61 +16,57 @@ module Socialcast
 
       attr_reader :attribute_mappings, :connection_name
 
-      def self.with_connector(connection_name, config)
-        connection_config = config["connections"][connection_name]
-        ldap = Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
-          ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
-          ldap_instance.auth connection_config["username"], connection_config["password"]
-        end
-
-        ldap.open do |connected_ldap_instance|
-          yield new(connection_name, config, connected_ldap_instance)
-        end
-      end
-
       def self.attribute_mappings_for(connection_name, config)
         config['connections'][connection_name]['mappings'] || config.fetch('mappings', {})
       end
 
-      def initialize(connection_name, config, ldap)
+      def initialize(connection_name, config)
         @connection_name = connection_name
         @config = config
-        @ldap = ldap
       end
 
       def each_user_hash
-        fetch_group_unique_identifiers
-        fetch_dn_to_email_hash
+        ldap.open do
+          fetch_group_unique_identifiers
+          fetch_dn_to_email_hash
 
-        each_ldap_entry(ldap_user_search_attributes) do |entry|
-          yield build_user_hash_from_mappings(entry)
+          each_ldap_entry(ldap_user_search_attributes) do |entry|
+            yield build_user_hash_from_mappings(entry)
+          end
         end
       end
 
       def each_photo_hash
-        each_ldap_entry(ldap_photo_search_attributes) do |entry|
-          photo_hash = build_photo_hash_from_mappings(entry)
-          yield photo_hash if photo_hash.present?
+        ldap.open do
+          each_ldap_entry(ldap_photo_search_attributes) do |entry|
+            photo_hash = build_photo_hash_from_mappings(entry)
+            yield photo_hash if photo_hash.present?
+          end
         end
       end
 
       def fetch_user_hash(identifier, options)
-        options = options.dup
-        identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER_ATTRIBUTE
+        ldap.open do
+          fetch_group_unique_identifiers
+          fetch_dn_to_email_hash
 
-        filter = if connection_config['filter'].present?
-                   Net::LDAP::Filter.construct(connection_config['filter'])
-                 else
-                   Net::LDAP::Filter.pres("objectclass")
-                 end
+          options = options.dup
+          identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER_ATTRIBUTE
 
-        filter = filter & Net::LDAP::Filter.construct("#{attribute_mappings[identifying_field]}=#{identifier}")
+          filter = if connection_config['filter'].present?
+                     Net::LDAP::Filter.construct(connection_config['filter'])
+                   else
+                     Net::LDAP::Filter.pres("objectclass")
+                   end
 
-        search(:base => connection_config['basedn'], :filter => filter, :attributes => ldap_user_search_attributes, :size => 1) do |entry|
-          return build_user_hash_from_mappings(entry)
+          filter = filter & Net::LDAP::Filter.construct("#{attribute_mappings[identifying_field]}=#{identifier}")
+
+          search(:base => connection_config['basedn'], :filter => filter, :attributes => ldap_user_search_attributes, :size => 1) do |entry|
+            return build_user_hash_from_mappings(entry)
+          end
+
+          nil
         end
-
-        nil
       end
 
       def attribute_mappings
@@ -101,6 +97,13 @@ module Socialcast
           else
             normalize_ldap_value(entry, attribute)
           end
+        end
+      end
+
+      def ldap
+        @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
+          ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
+          ldap_instance.auth connection_config["username"], connection_config["password"]
         end
       end
 
@@ -178,8 +181,10 @@ module Socialcast
             yield(entry)
           end
 
-          @search_in_progress = false
         end
+
+      ensure
+        @search_in_progress = false
       end
 
       def normalize_ldap_value(entry, attribute)

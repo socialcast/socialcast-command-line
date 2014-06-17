@@ -18,11 +18,15 @@ module Socialcast
         @http_config ||= @ldap_config.fetch 'http', {}
       end
 
+      def ldap_connectors
+        @ldap_connectors ||= @ldap_config['connections'].map do |connection_name, _|
+          LDAPConnector.new(connection_name, @ldap_config)
+        end
+      end
+
       def each_ldap_connector
-        @ldap_config['connections'].keys.each do |connection_name|
-          LDAPConnector.with_connector(connection_name, @ldap_config) do |ldap_connector|
-            yield ldap_connector
-          end
+        ldap_connectors.each do |ldap_connector|
+          yield ldap_connector
         end
       end
 
