@@ -1,10 +1,12 @@
 require 'spec_helper'
 
 describe Socialcast::CommandLine do
-
   let(:custom_file) { File.join(File.dirname(__FILE__), '..', 'fixtures', 'custom_credentials.yml') }
   let(:stubbed_credentials) { File.join(File.dirname(__FILE__), '..', 'fixtures') }
-  before { Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials) }
+  before do
+    Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials)
+    HighLine.any_instance.stub(:say) 
+  end
   let!(:orig_credentials) { Socialcast::CommandLine.credentials }
 
   describe '.credentials_file' do
@@ -92,6 +94,19 @@ describe Socialcast::CommandLine do
 
       it "should not change other values" do 
         (subject.keys - [:password]).each { |k| subject[k].should == opaque_credentials[k] }
+      end
+
+      context "with nonconformant password" do
+        subject { Socialcast::CommandLine.send(:clarify_credential_hash, clear_credentials) }
+
+        it "should use the literal value for the password" do
+          subject[:password].should == clear_credentials[:password]
+        end
+
+        it "should print a warning ot standard out" do
+          HighLine.any_instance.should_receive(:say).with(/Warning.*password.*decode/)
+          subject
+        end
       end
     end
   end

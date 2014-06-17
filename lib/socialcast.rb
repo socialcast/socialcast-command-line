@@ -2,6 +2,7 @@ require 'yaml'
 require 'base64'
 require 'digest'
 require 'fileutils'
+require 'highline'
 
 require_relative 'socialcast/command_line/ldap_connector'
 require_relative 'socialcast/command_line/provisioner'
@@ -87,7 +88,7 @@ module Socialcast
           if decoded_payload && claimed_checksum == observed_checksum
             returned_value = decoded_payload
           else
-            puts "Warning: #{key} didn't decode successfully. Falling back to the literal value. Try re-running 'socialcast authenticate' if authentication problems occur."
+            HighLine.new.say "Warning: #{key} didn't decode successfully. Falling back to the literal value. Try re-running 'socialcast authenticate' if authentication problems occur."
           end
         end
 
