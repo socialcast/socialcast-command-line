@@ -1,10 +1,12 @@
 require 'spec_helper'
 
 describe Socialcast::CommandLine do
-
   let(:custom_file) { File.join(File.dirname(__FILE__), '..', 'fixtures', 'custom_credentials.yml') }
   let(:stubbed_credentials) { File.join(File.dirname(__FILE__), '..', 'fixtures') }
-  before { Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials) }
+  before do
+    Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials)
+    HighLine.any_instance.stub(:say) 
+  end
   let!(:orig_credentials) { Socialcast::CommandLine.credentials }
 
   describe '.credentials_file' do
@@ -21,6 +23,10 @@ describe Socialcast::CommandLine do
 
   describe '.credentials' do
     subject { Socialcast::CommandLine.credentials }
+    describe 'when the file is missing' do
+      before { Socialcast::CommandLine.stub(:credentials_file => "/does/not/exist") }
+      it { expect { subject }.to raise_error(RuntimeError, 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize') }
+    end
     describe 'with ENV variable' do
       before { ENV['SC_CREDENTIALS_FILE'] = custom_file }
       after { ENV['SC_CREDENTIALS_FILE'] = nil }
@@ -60,6 +66,48 @@ describe Socialcast::CommandLine do
     context 'when using an external system' do
       let(:options) { { :external_system => true, :headers => { :Authorization=>"SocialcastApiClient my_id:mysecret" } } }
       it 'sends external system credentials' do end
+    end
+  end
+
+  describe 'credential_obfuscation' do
+    let(:clear_credentials) { { :username => "bob", :password => "foo" } }
+    let(:opaque_credentials) { { :username => "bob", :password => "9671d40255f7d27b4bb536636491f84ddd6b90e0Zm9v" } } # "foo"
+
+    describe '.obfuscate_credential_hash' do
+      subject(:obfuscate_credential_hash) { Socialcast::CommandLine.send(:obfuscate_credential_hash, clear_credentials) }
+
+      it "should obfuscate the password" do
+        obfuscate_credential_hash[:password].should == opaque_credentials[:password]
+      end
+
+      it "should not change other values" do 
+        (obfuscate_credential_hash.keys - [:password]).each { |k| obfuscate_credential_hash[k].should == clear_credentials[k] }
+      end
+    end
+
+    describe '.clarify_credential_hash' do
+      subject(:clarify_credential_hash) { Socialcast::CommandLine.send(:clarify_credential_hash, opaque_credentials) }
+
+      it "should clarify the password" do
+        clarify_credential_hash[:password].should == clear_credentials[:password]
+      end
+
+      it "should not change other values" do 
+        (clarify_credential_hash.keys - [:password]).each { |k| clarify_credential_hash[k].should == opaque_credentials[k] }
+      end
+
+      context "with nonconformant password" do
+        subject(:clarify_credential_hash) { Socialcast::CommandLine.send(:clarify_credential_hash, clear_credentials) }
+
+        it "should use the literal value for the password" do
+          clarify_credential_hash[:password].should == clear_credentials[:password]
+        end
+
+        it "should print a warning to standard out" do
+          HighLine.any_instance.should_receive(:say).with(/Warning.*password.*decode/)
+          clarify_credential_hash
+        end
+      end
     end
   end
 end

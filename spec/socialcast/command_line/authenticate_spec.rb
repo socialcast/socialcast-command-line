@@ -3,8 +3,14 @@ require 'spec_helper'
 describe Socialcast::CommandLine::Authenticate do
   let(:options) { { :domain => "test.socialcast.local" } }
   let(:params) { {  } }
+  let(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.plaintext.yml')) }
   subject(:authenticate) { Socialcast::CommandLine::Authenticate.new(authenticate_type, options, params) }
 
+  before do
+    Socialcast::CommandLine.stub(:credentials).and_return(credentials)
+    Socialcast::CommandLine.stub(:credentials=)
+  end
+  
   describe '#request' do
     before do
       RestClient::Resource.should_receive(:new).with(url, {}).and_call_original
@@ -32,14 +38,9 @@ describe Socialcast::CommandLine::Authenticate do
     after do
       Socialcast::CommandLine::Authenticate.instance_variable_set(:@current_user, nil)
     end
-    context 'as an unauthenticated user' do
-      it { expect { current_user }.to raise_error(RuntimeError, 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize') }
-    end
     context 'with credentials specified out' do
-      let(:stubbed_config_dir) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures') }
       let(:current_user_stub) { { :user => { :id => 123 } } }
       let(:current_user_error) { { :error => "Failed to authenticate due to password" } }
-      before { Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_config_dir) }
       context 'as a successfull authenticated user' do
         before do
           stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
