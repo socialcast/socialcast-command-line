@@ -21,6 +21,10 @@ describe Socialcast::CommandLine do
 
   describe '.credentials' do
     subject { Socialcast::CommandLine.credentials }
+    describe 'when the file is missing' do
+      before { Socialcast::CommandLine.stub(:credentials_file => "/does/not/exist") }
+      it { expect { subject }.to raise_error(RuntimeError, 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize') }
+    end
     describe 'with ENV variable' do
       before { ENV['SC_CREDENTIALS_FILE'] = custom_file }
       after { ENV['SC_CREDENTIALS_FILE'] = nil }

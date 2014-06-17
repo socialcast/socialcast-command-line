@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe Socialcast::CommandLine::CLI do
-  let(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.yml')) }
+  let(:credentials) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'credentials.plaintext.yml')) }
   let(:ldap_default_config_file) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap.yml') }
   let(:ldap_with_profile_photo_config_file) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml') }
   let(:ldap_default_config) { YAML.load_file(ldap_default_config_file) }
