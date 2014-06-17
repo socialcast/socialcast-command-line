@@ -66,4 +66,33 @@ describe Socialcast::CommandLine do
       it 'sends external system credentials' do end
     end
   end
+
+  describe 'credential_obfuscation' do
+    let(:clear_credentials) { { :username => "bob", :password => "foo" } }
+    let(:opaque_credentials) { { :username => "bob", :password => "9671d40255f7d27b4bb536636491f84ddd6b90e0Zm9v" } } # "foo"
+
+    describe '.obfuscate_credential_hash' do
+      subject { Socialcast::CommandLine.send(:obfuscate_credential_hash, clear_credentials) }
+
+      it "should obfuscate the password" do
+        subject[:password].should == opaque_credentials[:password]
+      end
+
+      it "should not change other values" do 
+        (subject.keys - [:password]).each { |k| subject[k].should == clear_credentials[k] }
+      end
+    end
+
+    describe '.clarify_credential_hash' do
+      subject { Socialcast::CommandLine.send(:clarify_credential_hash, opaque_credentials) }
+
+      it "should clarify the password" do
+        subject[:password].should == clear_credentials[:password]
+      end
+
+      it "should not change other values" do 
+        (subject.keys - [:password]).each { |k| subject[k].should == opaque_credentials[k] }
+      end
+    end
+  end
 end
