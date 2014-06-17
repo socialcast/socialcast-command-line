@@ -1,5 +1,6 @@
 require 'yaml'
 require 'base64'
+require 'digest'
 require 'fileutils'
 
 require_relative 'socialcast/command_line/ldap_connector'
@@ -27,7 +28,7 @@ module Socialcast
 
     def self.credentials
       fail 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize' unless File.exist?(credentials_file)
-      @credentials ||= clarify_credential_hash(YAML.load_file(credentials_file))
+      clarify_credential_hash(YAML.load_file(credentials_file))
     end
 
     def self.credentials=(options)
@@ -59,19 +60,39 @@ module Socialcast
 
     private
 
+    SHA1_HEX_LENGTH=40
+
     def self.obfuscate_credential_hash(credential_hash)
       Hash[ credential_hash.map do |key, value|
-        value = Base64.strict_encode64(value) if OBFUSCATED_CREDENTIAL_KEYS.include? key
+        if OBFUSCATED_CREDENTIAL_KEYS.include? key
+          encoded_value = Base64.strict_encode64(value)
+
+          # Encoding as UTF-8 needed to prevent YAML from going full-binary w/ these values
+          value = ((Digest::SHA1.new << encoded_value).to_s + encoded_value).encode('UTF-8')
+        end
         [key, value]
       end]
     end
 
     def self.clarify_credential_hash(credential_hash)
       Hash[credential_hash.map do |key, value|
-        value = Base64.strict_decode64(value) if OBFUSCATED_CREDENTIAL_KEYS.include? key
-        [key, value]
+        returned_value = value
+
+        if OBFUSCATED_CREDENTIAL_KEYS.include? key
+          claimed_checksum = value[0...SHA1_HEX_LENGTH] || ""
+          encoded_payload = value[SHA1_HEX_LENGTH..-1] || ""
+          observed_checksum = (Digest::SHA1.new << encoded_payload).to_s
+          decoded_payload = Base64.strict_decode64(encoded_payload) rescue nil 
+
+          if decoded_payload && claimed_checksum == observed_checksum
+            returned_value = decoded_payload
+          else
+            puts "Warning: #{key} didn't decode successfully. Falling back to the literal value. Try re-running 'socialcast authenticate' if authentication problems occur."
+          end
+        end
+
+        [key, returned_value]
       end]
     end
-
   end
 end
