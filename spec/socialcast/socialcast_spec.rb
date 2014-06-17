@@ -74,38 +74,38 @@ describe Socialcast::CommandLine do
     let(:opaque_credentials) { { :username => "bob", :password => "9671d40255f7d27b4bb536636491f84ddd6b90e0Zm9v" } } # "foo"
 
     describe '.obfuscate_credential_hash' do
-      subject { Socialcast::CommandLine.send(:obfuscate_credential_hash, clear_credentials) }
+      subject(:obfuscate_credential_hash) { Socialcast::CommandLine.send(:obfuscate_credential_hash, clear_credentials) }
 
       it "should obfuscate the password" do
-        subject[:password].should == opaque_credentials[:password]
+        obfuscate_credential_hash[:password].should == opaque_credentials[:password]
       end
 
       it "should not change other values" do 
-        (subject.keys - [:password]).each { |k| subject[k].should == clear_credentials[k] }
+        (obfuscate_credential_hash.keys - [:password]).each { |k| obfuscate_credential_hash[k].should == clear_credentials[k] }
       end
     end
 
     describe '.clarify_credential_hash' do
-      subject { Socialcast::CommandLine.send(:clarify_credential_hash, opaque_credentials) }
+      subject(:clarify_credential_hash) { Socialcast::CommandLine.send(:clarify_credential_hash, opaque_credentials) }
 
       it "should clarify the password" do
-        subject[:password].should == clear_credentials[:password]
+        clarify_credential_hash[:password].should == clear_credentials[:password]
       end
 
       it "should not change other values" do 
-        (subject.keys - [:password]).each { |k| subject[k].should == opaque_credentials[k] }
+        (clarify_credential_hash.keys - [:password]).each { |k| clarify_credential_hash[k].should == opaque_credentials[k] }
       end
 
       context "with nonconformant password" do
-        subject { Socialcast::CommandLine.send(:clarify_credential_hash, clear_credentials) }
+        subject(:clarify_credential_hash) { Socialcast::CommandLine.send(:clarify_credential_hash, clear_credentials) }
 
         it "should use the literal value for the password" do
-          subject[:password].should == clear_credentials[:password]
+          clarify_credential_hash[:password].should == clear_credentials[:password]
         end
 
-        it "should print a warning ot standard out" do
+        it "should print a warning to standard out" do
           HighLine.any_instance.should_receive(:say).with(/Warning.*password.*decode/)
-          subject
+          clarify_credential_hash
         end
       end
     end
