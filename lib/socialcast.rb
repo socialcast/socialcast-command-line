@@ -1,4 +1,5 @@
 require 'yaml'
+require 'base64'
 require 'fileutils'
 
 require_relative 'socialcast/command_line/ldap_connector'
@@ -12,6 +13,8 @@ require_relative 'socialcast/command_line/version'
 
 module Socialcast
   module CommandLine
+    OBFUSCATED_CREDENTIAL_KEYS=[:password].to_set
+
     def self.config_dir
       config_dir = File.expand_path '~/.socialcast'
       FileUtils.mkdir config_dir, :mode => 0700 unless File.exist?(config_dir)
@@ -24,14 +27,16 @@ module Socialcast
 
     def self.credentials
       fail 'Unknown Socialcast credentials.  Run `socialcast authenticate` to initialize' unless File.exist?(credentials_file)
-      YAML.load_file(credentials_file)
+      @credentials ||= clarify_credential_hash(YAML.load_file(credentials_file))
     end
 
     def self.credentials=(options)
+      obfuscated_credentials = obfuscate_credential_hash(options)
+
       File.open(credentials_file, "a+") do |f|
         existing_content = YAML.load(f.read) || {}
         f.truncate(0)
-        f.write(existing_content.merge(options).to_yaml)
+        f.write(existing_content.merge(obfuscated_credentials).to_yaml)
       end
       File.chmod 0600, credentials_file
     end
@@ -50,6 +55,22 @@ module Socialcast
       else
         { :user => credentials[:user], :password => credentials[:password] }
       end
+    end
+
+    private
+
+    def self.obfuscate_credential_hash(credential_hash)
+      Hash[ credential_hash.map do |key, value|
+        value = Base64.strict_encode64(value) if OBFUSCATED_CREDENTIAL_KEYS.include? key
+        [key, value]
+      end]
+    end
+
+    def self.clarify_credential_hash(credential_hash)
+      Hash[credential_hash.map do |key, value|
+        value = Base64.strict_decode64(value) if OBFUSCATED_CREDENTIAL_KEYS.include? key
+        [key, value]
+      end]
     end
 
   end
