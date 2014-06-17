@@ -15,7 +15,7 @@ require_relative 'socialcast/command_line/version'
 
 module Socialcast
   module CommandLine
-    OBFUSCATED_CREDENTIAL_KEYS=[:password].to_set
+    OBFUSCATED_CREDENTIAL_KEYS = [:password].to_set
 
     def self.config_dir
       config_dir = File.expand_path '~/.socialcast'
@@ -61,7 +61,7 @@ module Socialcast
 
     private
 
-    SHA1_HEX_LENGTH=40
+    SHA1_HEX_LENGTH = 40
 
     def self.obfuscate_credential_hash(credential_hash)
       Hash[ credential_hash.map do |key, value|
