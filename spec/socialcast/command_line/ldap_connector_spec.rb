@@ -498,6 +498,28 @@ describe Socialcast::CommandLine::LDAPConnector do
         end.to raise_error Socialcast::CommandLine::LDAPConnector::ConcurrentSearchError
       end
     end
+
+    context "calling when a search is already being performed, rescuing, then calling again" do
+      let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
+      before do
+        ldap.should_receive(:search).and_yield(create_entry('user', :mail => 'user@example.com'))
+      end
+      it "raises an error" do
+        expect do
+          connector.each_user_hash do |user_hash|
+            begin
+              connector.each_user_hash do |another_user_hash|
+                # connection already open
+              end
+            rescue Socialcast::CommandLine::LDAPConnector::ConcurrentSearchError
+            end
+            connector.each_user_hash do |another_user_hash|
+              # connection already open
+            end
+          end
+        end.to raise_error Socialcast::CommandLine::LDAPConnector::ConcurrentSearchError
+      end
+    end
   end
 
   describe "#each_photo_hash" do
