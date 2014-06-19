@@ -5,6 +5,8 @@ require 'active_support/core_ext/array/wrap'
 module Socialcast
   module CommandLine
     class LDAPConnector
+      class ConcurrentSearchError < StandardError; end
+
       UNIQUE_IDENTIFIER_ATTRIBUTE = "unique_identifier"
       EMAIL_ATTRIBUTE = "email"
       MANAGER_ATTRIBUTE = "manager"
@@ -14,65 +16,64 @@ module Socialcast
 
       attr_reader :attribute_mappings, :connection_name
 
-      def self.with_connector(connection_name, config)
-        connection_config = config["connections"][connection_name]
-        ldap = Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
-          ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
-          ldap_instance.auth connection_config["username"], connection_config["password"]
-        end
-
-        ldap.open do |connected_ldap_instance|
-          yield new(connection_name, config, connected_ldap_instance)
-        end
-      end
-
       def self.attribute_mappings_for(connection_name, config)
         config['connections'][connection_name]['mappings'] || config.fetch('mappings', {})
       end
 
-      def initialize(connection_name, config, ldap)
+      def initialize(connection_name, config)
         @connection_name = connection_name
         @config = config
-        @ldap = ldap
-        @group_unique_identifiers = fetch_group_unique_identifiers
-        @dn_to_email_hash = fetch_dn_to_email_hash
       end
 
       def each_user_hash
-        each_ldap_entry(ldap_user_search_attributes) do |entry|
-          yield build_user_hash_from_mappings(entry)
+        ldap.open do
+          fetch_group_unique_identifiers
+          fetch_dn_to_email_hash
+
+          each_ldap_entry(ldap_user_search_attributes) do |entry|
+            yield build_user_hash_from_mappings(entry)
+          end
         end
       end
 
       def each_photo_hash
-        each_ldap_entry(ldap_photo_search_attributes) do |entry|
-          photo_hash = build_photo_hash_from_mappings(entry)
-          yield photo_hash if photo_hash.present?
+        ldap.open do
+          each_ldap_entry(ldap_photo_search_attributes) do |entry|
+            photo_hash = build_photo_hash_from_mappings(entry)
+            yield photo_hash if photo_hash.present?
+          end
         end
       end
 
       def fetch_user_hash(identifier, options)
-        options = options.dup
-        identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER_ATTRIBUTE
+        ldap.open do
+          fetch_group_unique_identifiers
+          fetch_dn_to_email_hash
 
-        filter = if connection_config['filter'].present?
-                   Net::LDAP::Filter.construct(connection_config['filter'])
-                 else
-                   Net::LDAP::Filter.pres("objectclass")
-                 end
+          options = options.dup
+          identifying_field = options.delete(:identifying_field) || UNIQUE_IDENTIFIER_ATTRIBUTE
 
-        filter = filter & Net::LDAP::Filter.construct("#{attribute_mappings[identifying_field]}=#{identifier}")
+          filter = if connection_config['filter'].present?
+                     Net::LDAP::Filter.construct(connection_config['filter'])
+                   else
+                     Net::LDAP::Filter.pres("objectclass")
+                   end
 
-        search(:base => connection_config['basedn'], :filter => filter, :attributes => ldap_user_search_attributes, :size => 1) do |entry|
-          return build_user_hash_from_mappings(entry)
+          filter = filter & Net::LDAP::Filter.construct("#{attribute_mappings[identifying_field]}=#{identifier}")
+
+          search(:base => connection_config['basedn'], :filter => filter, :attributes => ldap_user_search_attributes, :size => 1) do |entry|
+            return build_user_hash_from_mappings(entry)
+          end
+
+          nil
         end
-
-        nil
       end
 
       def attribute_mappings
         @attribute_mappings ||= LDAPConnector.attribute_mappings_for(@connection_name, @config)
       end
+
+      private
 
       # grab a *single* value of an attribute
       # abstracts away ldap multivalue attributes
@@ -99,7 +100,16 @@ module Socialcast
         end
       end
 
-      private
+      def ldap
+        @ldap ||= Net::LDAP.new(:host => connection_config["host"], :port => connection_config["port"], :base => connection_config["basedn"]).tap do |ldap_instance|
+          ldap_instance.encryption connection_config['encryption'].to_sym if connection_config['encryption']
+          ldap_instance.auth connection_config["username"], connection_config["password"]
+        end
+      end
+
+      def root_namingcontexts
+        @root_naming_contexts ||= Array.wrap(@ldap.search_root_dse.namingcontexts)
+      end
 
       def each_ldap_entry(attributes)
         search(:return_result => false, :filter => connection_config["filter"], :base => connection_config["basedn"], :attributes => attributes) do |entry|
@@ -156,17 +166,24 @@ module Socialcast
       end
 
       def search(search_options)
-        options_for_search = if search_options[:base].present?
-                               Array.wrap(search_options)
-                             else
-                               distinguished_names = Array.wrap(@ldap.search_root_dse.namingcontexts)
-                               options_for_search = distinguished_names.map { |dn| search_options.merge(:base => dn ) }
-                             end
+        raise ConcurrentSearchError.new "Cannot perform concurrent searches on an open ldap connection" if @search_in_progress
+        begin
+          options_for_search = if search_options[:base].present?
+                                 Array.wrap(search_options)
+                               else
+                                 options_for_search = root_namingcontexts.map { |dn| search_options.merge(:base => dn ) }
+                               end
 
-        options_for_search.each do |options|
-          @ldap.search(options) do |entry|
-            yield(entry)
+          options_for_search.each do |options|
+            @search_in_progress = true
+
+            @ldap.search(options) do |entry|
+              yield(entry)
+            end
+
           end
+        ensure
+          @search_in_progress = false
         end
       end
 
@@ -190,30 +207,34 @@ module Socialcast
       end
 
       def fetch_group_unique_identifiers
-        return nil unless group_membership_mappings.present?
+        @group_unique_identifiers ||= if group_membership_mappings.present?
+                                        {}.tap do |groups|
+                                          search_options = {
+                                            :return_result => false,
+                                            :filter => group_membership_mappings["filter"],
+                                            :base => connection_config["basedn"],
+                                            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]]
+                                          }
 
-        {}.tap do |groups|
-          search_options = {
-            :return_result => false,
-            :filter => group_membership_mappings["filter"],
-            :base => connection_config["basedn"],
-            :attributes => [group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE]]
-          }
-
-          search(search_options) do |entry|
-            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE])
-          end
-        end
+                                          search(search_options) do |entry|
+                                            groups[grab(entry, "dn")] = grab(entry, group_membership_mappings[UNIQUE_IDENTIFIER_ATTRIBUTE])
+                                          end
+                                        end
+                                      else
+                                        {}
+                                      end
       end
 
       def fetch_dn_to_email_hash
-        return nil unless attribute_mappings[MANAGER_ATTRIBUTE].present?
-
-        {}.tap do |dn_to_email_hash|
-          each_ldap_entry(ldap_mail_search_attributes) do |entry|
-            dn_to_email_hash[entry.dn] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
-          end
-        end
+        @dn_to_email_hash ||= if attribute_mappings[MANAGER_ATTRIBUTE].present?
+                                {}.tap do |dn_to_email_hash|
+                                  each_ldap_entry(ldap_mail_search_attributes) do |entry|
+                                    dn_to_email_hash[entry.dn] = grab(entry, attribute_mappings[EMAIL_ATTRIBUTE])
+                                  end
+                                end
+                              else
+                                {}
+                              end
       end
 
       def add_primary_attributes(entry, user_hash)

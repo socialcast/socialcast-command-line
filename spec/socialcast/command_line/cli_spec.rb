@@ -21,7 +21,7 @@ describe Socialcast::CommandLine::CLI do
 
   let(:ldap) do
     ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
-    ldap_instance.should_receive(:open).and_yield(ldap_instance)
+    ldap_instance.should_receive(:open).and_yield
     Net::LDAP.should_receive(:new).and_return(ldap_instance)
     ldap_instance
   end

@@ -19,7 +19,7 @@ describe Socialcast::CommandLine::ProvisionUser do
 
   let(:ldap) do
     ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
-    ldap_instance.should_receive(:open).and_yield(ldap_instance)
+    ldap_instance.should_receive(:open).and_yield
     Net::LDAP.should_receive(:new).and_return(ldap_instance)
     ldap_instance
   end
@@ -117,13 +117,13 @@ describe Socialcast::CommandLine::ProvisionUser do
           provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_multiple_connection_mapping_config, {})
 
           ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance1.should_receive(:open).and_yield(ldap_instance1)
+          ldap_instance1.should_receive(:open).and_yield
           Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry 'user', :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
 
           ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance2.should_receive(:open).and_yield(ldap_instance2)
+          ldap_instance2.should_receive(:open).and_yield
           Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry 'user', :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
@@ -177,7 +177,7 @@ describe Socialcast::CommandLine::ProvisionUser do
           provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_with_manager_attribute_config, {})
 
           ldap_instance = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance.should_receive(:open).and_yield(ldap_instance)
+          ldap_instance.should_receive(:open).and_yield
           Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
 
           user_entry = create_entry 'user', :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
@@ -375,13 +375,13 @@ describe Socialcast::CommandLine::ProvisionUser do
           provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_multiple_connection_permission_mapping_config, {})
 
           ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance1.should_receive(:open).and_yield(ldap_instance1)
+          ldap_instance1.should_receive(:open).and_yield
           Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry1)
 
           ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance2.should_receive(:open).and_yield(ldap_instance2)
+          ldap_instance2.should_receive(:open).and_yield
           Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :member => ["cn=Contractors,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
           ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'member'])).and_yield(entry2)
@@ -411,7 +411,7 @@ describe Socialcast::CommandLine::ProvisionUser do
         root_entry = create_entry('domain', :namingcontexts => ['dc=foo,dc=com', 'dc=bar,dc=com'])
         ldap_instance = double(Net::LDAP, :encryption => nil, :auth => nil)
         ldap_instance.should_receive(:search_root_dse).once.and_return(root_entry)
-        ldap_instance.should_receive(:open).and_yield(ldap_instance)
+        ldap_instance.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
 
         user_entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
@@ -474,14 +474,14 @@ describe Socialcast::CommandLine::ProvisionUser do
       let(:entry) { create_entry 'user', :mailCon2 => 'user@example.com', :firstName => 'first name' }
       before do
         ldap_instance1 = double(Net::LDAP, :auth => nil)
-        ldap_instance1.should_receive(:open).and_yield(ldap_instance1)
+        ldap_instance1.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
         ldap_instance1.should_receive(:search).once.ordered
           .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
 
         ldap_instance2 = double(Net::LDAP, :auth => nil)
-        ldap_instance2.should_receive(:open).and_yield(ldap_instance2)
+        ldap_instance2.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
         ldap_instance2.should_receive(:search).once.ordered
@@ -505,14 +505,14 @@ describe Socialcast::CommandLine::ProvisionUser do
       let(:provision_instance) { Socialcast::CommandLine::ProvisionUser.new(ldap_multiple_connection_mapping_config, {}) }
       before do
         ldap_instance1 = double(Net::LDAP, :auth => nil)
-        ldap_instance1.should_receive(:open).and_yield(ldap_instance1)
+        ldap_instance1.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
         ldap_instance1.should_receive(:search)
           .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
 
         ldap_instance2 = double(Net::LDAP, :auth => nil)
-        ldap_instance2.should_receive(:open).and_yield(ldap_instance2)
+        ldap_instance2.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
         ldap_instance2.should_receive(:search).once.ordered

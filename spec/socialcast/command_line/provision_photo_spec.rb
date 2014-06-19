@@ -12,7 +12,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
 
   let(:ldap) do
     ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
-    ldap_instance.should_receive(:open).and_yield(ldap_instance)
+    ldap_instance.should_receive(:open).and_yield
     Net::LDAP.should_receive(:new).and_return(ldap_instance)
     ldap_instance
   end
@@ -143,13 +143,13 @@ describe Socialcast::CommandLine::ProvisionPhoto do
         stub_const("Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE", 2)
 
         ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
-        ldap_instance1.should_receive(:open).and_yield(ldap_instance1)
+        ldap_instance1.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
         entry1 = create_entry 'user', :mailCon => 'user@example.com', :photoCon => binary_photo_data
         ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'photoCon'])).and_yield(entry1)
 
         ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
-        ldap_instance2.should_receive(:open).and_yield(ldap_instance2)
+        ldap_instance2.should_receive(:open).and_yield
         Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
         entry2 = create_entry 'user', :mailCon2 => 'user2@example.com', :photoCon2 => binary_photo_data
         ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'photoCon2'])).and_yield(entry2)
