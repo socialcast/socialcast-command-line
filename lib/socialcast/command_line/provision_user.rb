@@ -52,6 +52,7 @@ module Socialcast
               request_params = {:file => file}
               request_params[:skip_emails] = 'true' if (@ldap_config.fetch('options', {})["skip_emails"] || @options[:skip_emails])
               request_params[:test] = 'true' if (@ldap_config.fetch('options', {})["test"] || @options[:test])
+              request_params[:add_only] = 'true' if (@ldap_config.fetch('options', {})['add_only'] || @options[:add_only])
               resource.post request_params, :accept => :json
             end
           rescue RestClient::Unauthorized => e
