@@ -40,7 +40,11 @@ module Socialcast
             puts "Scanned #{count} users" if ((count % 100) == 0)
           end
         end
-        puts "Finished scanning #{count} users"
+        log "Finished scanning #{count} users"
+      end
+
+      def log(message)
+        $stdout.puts message
       end
     end
   end

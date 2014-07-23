@@ -45,7 +45,7 @@ module Socialcast
         if user_whitelist.empty? && !@options[:force]
           raise ProvisionError.new "Skipping upload to Socialcast since no users were found"
         else
-          puts "Uploading dataset to Socialcast..."
+          log "Uploading dataset to Socialcast..."
           resource = Socialcast::CommandLine.resource_for_path '/api/users/provision', params
           begin
             File.open(output_file, 'r') do |file|
@@ -57,7 +57,7 @@ module Socialcast
           rescue RestClient::Unauthorized => e
             raise ProvisionError.new "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
           end
-          puts "Finished"
+          log "Finished"
         end
         File.delete(output_file) if (@ldap_config.fetch('options', {})['delete_users_file'] || @options[:delete_users_file])
       end
