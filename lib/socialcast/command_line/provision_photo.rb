@@ -5,7 +5,7 @@ module Socialcast
       attr_accessor :users
       MAX_BATCH_SIZE = 50
 
-      def sync
+      def sync(batch_size = MAX_MATCH_SIZE)
         @ldap_config['connections'].keys.each do |connection_name|
           LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).fetch(LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
         end
@@ -16,7 +16,7 @@ module Socialcast
           connector.each_photo_hash do |photo_hash|
             email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
             users[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
-            handle_batch if users.size >= MAX_BATCH_SIZE
+            handle_batch if users.size >= batch_size
           end
         end
 
@@ -48,43 +48,51 @@ module Socialcast
         user_email = user_hash && user_hash['contact_info'] && user_hash['contact_info']['email']
         return unless is_system_default || is_community_default || @options[:force_sync]
 
-        ## PHOTO URL TO BINARY
         if profile_photo_data = users[user_email]
-          if profile_photo_data.start_with?('http')
+          if file = photo_data_to_file(profile_photo_data)
             begin
-              profile_photo_data = RestClient.get(profile_photo_data)
-            rescue => e
-              puts "Unable to download photo #{profile_photo_data} for #{user_email}"
-              puts e.response
-              return
+              assign_photo_to_user file
+            ensure
+              file.unlink
             end
           end
+        end
+      end
 
-          ## FORCE ENCODING
-          profile_photo_data = profile_photo_data.force_encoding('binary')
+      def photo_data_to_temp_file(profile_photo_data)
+        if profile_photo_data.start_with?('http')
+          profile_photo_data = download_photo_data(profile_photo_data)
+          return unless profile_photo_data
+        end
 
-          ## CONTENT TYPE
-          unless content_type = binary_to_content_type(profile_photo_data)
-            puts "Skipping photo for #{user_email}: unknown image format (supports .gif, .png, .jpg)"
-            return
-          end
+        ## FORCE ENCODING
+        profile_photo_data = profile_photo_data.force_encoding('binary')
 
-          ## WRITE TEMP FILE
-          tempfile = Tempfile.new(["photo_upload", ".#{content_type}"])
+        ## CONTENT TYPE
+        unless content_type = binary_to_content_type(profile_photo_data)
+          log "Skipping photo for #{user_email}: unknown image format (supports .gif, .png, .jpg)"
+          return
+        end
+
+        ## WRITE TEMP FILE
+        Tempfile.new(["photo_upload", ".#{content_type}"]).tap do |tempfile|
           tempfile.binmode
           tempfile.write(profile_photo_data)
           tempfile.rewind
-
-          puts "Uploading photo for #{user_email}"
-
-          ## SUBMIT PHOTO
-          begin
-            user_resource = Socialcast::CommandLine.resource_for_path "/api/users/#{user_hash['id']}", http_config
-            user_resource.put({ :user => { :profile_photo => { :data => tempfile } } })
-          ensure
-            tempfile.unlink
-          end
         end
+      end
+
+      def download_photo_data(profile_photo_data)
+        RestClient.get(profile_photo_data)
+      rescue => e
+        log "Unable to download photo #{profile_photo_data} for #{user_email}"
+        log e.response
+      end
+
+      def assign_photo_to_user(user_hash, file)
+        log "Uploading photo for #{user_email}"
+        user_resource = Socialcast::CommandLine.resource_for_path "/api/users/#{user_hash['id']}", http_config
+        user_resource.put({ :user => { :profile_photo => { :data => file } } })
       end
 
       def default_profile_photo_id
