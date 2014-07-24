@@ -2,64 +2,77 @@ module Socialcast
   module CommandLine
     class ProvisionPhoto
       include Socialcast::CommandLine::Provisioner
-      attr_accessor :users
       MAX_BATCH_SIZE = 50
 
-      def sync(batch_size = MAX_MATCH_SIZE)
-        @ldap_config['connections'].keys.each do |connection_name|
-          LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).fetch(LDAPConnector::PROFILE_PHOTO_ATTRIBUTE)
-        end
+      def sync(batch_size = MAX_BATCH_SIZE)
+        assert_ldap_connections_support_photo!
 
-        init_users
+        user_photos = {}
 
-        each_ldap_connector do |connector|
-          connector.each_photo_hash do |photo_hash|
-            email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
-            users[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
-            handle_batch if users.size >= batch_size
+        debugger
+
+        each_photo_hash do |photo_hash|
+          email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
+          user_photos[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
+          if user_photos.size >= batch_size
+            handle_batch(user_photos)
+            user_photos = {}
           end
         end
 
-        handle_batch if users.any?
+        handle_batch(user_photos) if user_photos.any?
       end
 
       private
 
-      def init_users
-        @users = {}
-      end
-
-      def handle_batch
-        users.each_slice(MAX_BATCH_SIZE) do |user_batch|
-          search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
-          user_emails_query = user_batch.map { |u| "\"#{u[0]}\"" }.join(" OR ")
-          user_search_response = search_users_resource.get(:params => { :q => user_emails_query, :per_page => MAX_BATCH_SIZE }, :accept => :json)
-          JSON.parse(user_search_response)['users'].each do |user_hash|
-            sync_photo_for(user_hash)
+      def each_photo_hash
+        each_ldap_connector do |connector|
+          connector.each_photo_hash do |photo_hash|
+            yield photo_hash
           end
         end
-
-        init_users
       end
 
-      def sync_photo_for(user_hash)
+      def assert_ldap_connections_support_photo!
+        @ldap_config['connections'].each do |connection_name, _|
+          unless LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).key? LDAPConnector::PROFILE_PHOTO_ATTRIBUTE
+            message = "Cannot sync photos: #{connection_name} does not have a mapping for the profile photo field."
+            log(message)
+            raise Socialcast::CommandLine::Provisioner::ProvisionError, message
+          end
+        end
+      end
+
+      def handle_batch(user_photos)
+        search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
+        user_emails_query = user_photos.map { |email, _| "\"#{email}\"" }.join(" OR ")
+        user_search_response = search_users_resource.get(:params => { :q => user_emails_query, :per_page => MAX_BATCH_SIZE }, :accept => :json)
+        JSON.parse(user_search_response)['users'].each do |user_hash|
+          email = user_hash['contact_info']['email']
+          sync_photo(user_hash, user_photos[email])
+        end
+      end
+
+      def sync_photo(user_hash, profile_photo_data)
         is_system_default = user_hash && user_hash['avatars'] && user_hash['avatars']['is_system_default']
         is_community_default = user_hash && user_hash['avatars'] && (user_hash['avatars']['id'] == default_profile_photo_id)
         user_email = user_hash && user_hash['contact_info'] && user_hash['contact_info']['email']
         return unless is_system_default || is_community_default || @options[:force_sync]
 
-        if profile_photo_data = users[user_email]
-          if file = photo_data_to_file(profile_photo_data)
-            begin
-              assign_photo_to_user file
-            ensure
-              file.unlink
-            end
+        log "Syncing photo for #{user_email}"
+
+        if profile_photo_data && file = photo_data_to_file(profile_photo_data)
+          begin
+            log "Uploading photo for #{user_email}"
+            user_resource = Socialcast::CommandLine.resource_for_path "/api/users/#{user_hash['id']}", http_config
+            user_resource.put({ :user => { :profile_photo => { :data => file } } })
+          ensure
+            file.unlink
           end
         end
       end
 
-      def photo_data_to_temp_file(profile_photo_data)
+      def photo_data_to_file(profile_photo_data)
         if profile_photo_data.start_with?('http')
           profile_photo_data = download_photo_data(profile_photo_data)
           return unless profile_photo_data
@@ -70,7 +83,7 @@ module Socialcast
 
         ## CONTENT TYPE
         unless content_type = binary_to_content_type(profile_photo_data)
-          log "Skipping photo for #{user_email}: unknown image format (supports .gif, .png, .jpg)"
+          log "Skipping photo: unknown image format (supports .gif, .png, .jpg)"
           return
         end
 
@@ -85,14 +98,8 @@ module Socialcast
       def download_photo_data(profile_photo_data)
         RestClient.get(profile_photo_data)
       rescue => e
-        log "Unable to download photo #{profile_photo_data} for #{user_email}"
+        log "Unable to download photo #{profile_photo_data}"
         log e.response
-      end
-
-      def assign_photo_to_user(user_hash, file)
-        log "Uploading photo for #{user_email}"
-        user_resource = Socialcast::CommandLine.resource_for_path "/api/users/#{user_hash['id']}", http_config
-        user_resource.put({ :user => { :profile_photo => { :data => file } } })
       end
 
       def default_profile_photo_id

@@ -168,7 +168,7 @@ describe Socialcast::CommandLine::CLI do
     context "with no profile_photo mapping" do
       let(:config_file) { ldap_default_config_file }
       it "reports an error" do
-        lambda { Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file] }.should raise_error KeyError
+        lambda { Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file] }.should raise_error Socialcast::CommandLine::Provisioner::ProvisionError
       end
     end
 
@@ -227,6 +227,9 @@ describe Socialcast::CommandLine::CLI do
               'id' => 7,
               'avatars' => {
                 'id' => default_profile_photo_id
+              },
+              'contact_info' => {
+                'email' => 'ryan@example.com'
               }
             }
           ]
@@ -259,6 +262,9 @@ describe Socialcast::CommandLine::CLI do
               'id' => 7,
               'avatars' => {
                 'id' => another_profile_photo_id
+              },
+              'contact_info' => {
+                'email' => 'ryan@example.com'
               }
             }
           ]
