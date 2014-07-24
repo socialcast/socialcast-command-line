@@ -1,4 +1,4 @@
---- 
+---
 # LDAP connections
 connections:
   example_connection_1:
@@ -26,7 +26,7 @@ connections:
 
 
 # LDAP attribute mappings
-mappings: 
+mappings:
   first_name: givenName
   last_name: sn
   email: mail
@@ -82,6 +82,8 @@ options:
   # do not actually provision accounts
   # useful during testing
   test: true
+  # Add users without terminating anyone. Default=false
+  # add_only: false
 
 
 # http options for connecting to Socialcast servers
