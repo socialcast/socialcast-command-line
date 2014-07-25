@@ -140,7 +140,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
       let(:sync_photos) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_multiple_connection_mapping_config, {}).sync }
       let(:binary_photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
-        stub_const("Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE", 2)
+        Socialcast::CommandLine::ProvisionPhoto::ApiSyncStrategy.any_instance.stub(:batch_size).and_return(2)
 
         ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
         ldap_instance1.should_receive(:open).and_yield
@@ -156,7 +156,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
 
         Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
-        user_search_resource.should_receive(:get).once.with({:params=>{:q=>"\"user@example.com\" OR \"user2@example.com\"", :per_page=>Socialcast::CommandLine::ProvisionPhoto::MAX_BATCH_SIZE}, :accept=>:json}).and_return(search_api_response.to_json)
+        user_search_resource.should_receive(:get).once.with({:params => { :q => "\"user@example.com\" OR \"user2@example.com\"", :per_page => 2}, :accept => :json}).and_return(search_api_response.to_json)
 
         user_resource1 = double(:user_resource)
         user_resource1.should_receive(:put) do |data|
