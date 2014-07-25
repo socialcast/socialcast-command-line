@@ -5,9 +5,9 @@ module Socialcast
 
       attr_accessor :sync_strategy
 
-      def sync(strategy = ApiSyncStrategy)
+      def sync(strategy_klass = ApiSyncStrategy)
         assert_ldap_connections_support_photo!
-        sync_strategy = strategy.new(self, :http_config => http_config,
+        sync_strategy = strategy_klass.new(self, :http_config => http_config,
                                            :force_sync => @options[:force_sync])
 
         user_photos = {}
