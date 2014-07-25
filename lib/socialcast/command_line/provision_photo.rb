@@ -6,6 +6,7 @@ module Socialcast
 
       def sync(batch_size = MAX_BATCH_SIZE)
         assert_ldap_connections_support_photo!
+        batch_size = [batch_size, MAX_BATCH_SIZE].min
 
         user_photos = {}
 
