@@ -9,8 +9,6 @@ module Socialcast
 
         user_photos = {}
 
-        debugger
-
         each_photo_hash do |photo_hash|
           email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
           user_photos[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
