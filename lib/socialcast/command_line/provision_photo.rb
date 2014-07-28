@@ -98,7 +98,7 @@ module Socialcast
 
         MAX_BATCH_SIZE = 50
 
-        def initialize(provisioner, options = {})
+        def initialize(provisioner)
           @provisioner = provisioner
         end
 
