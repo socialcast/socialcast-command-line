@@ -7,8 +7,11 @@ module Socialcast
 
       def sync(strategy_klass = ApiSyncStrategy)
         assert_ldap_connections_support_photo!
-        sync_strategy = strategy_klass.new(self, :http_config => http_config,
-                                           :force_sync => @options[:force_sync])
+        sync_strategy = strategy_klass.new(self)
+        process_options = {
+          :http_config => http_config,
+          :force_sync => @options[:force_sync]
+        }
 
         user_photos = {}
 
@@ -16,12 +19,12 @@ module Socialcast
           email = photo_hash[LDAPConnector::EMAIL_ATTRIBUTE]
           user_photos[email] = photo_hash[LDAPConnector::PROFILE_PHOTO_ATTRIBUTE]
           if user_photos.size >= sync_strategy.batch_size
-            sync_strategy.process(user_photos)
+            sync_strategy.process(user_photos, process_options)
             user_photos = {}
           end
         end
 
-        sync_strategy.process(user_photos) if user_photos.any?
+        sync_strategy.process(user_photos, process_options) if user_photos.any?
       end
 
       def photo_data_to_file(profile_photo_data)
@@ -97,11 +100,12 @@ module Socialcast
 
         def initialize(provisioner, options = {})
           @provisioner = provisioner
-          @http_config = options[:http_config]
-          @force_sync = options[:force_sync]
         end
 
-        def process(user_photos)
+        def process(user_photos, options = {})
+          @http_config = options[:http_config]
+          @force_sync = options[:force_sync]
+
           search_users_resource = Socialcast::CommandLine.resource_for_path '/api/users/search', http_config
           user_emails_query = user_photos.map { |email, _| "\"#{email}\"" }.join(" OR ")
           user_search_response = search_users_resource.get(:params => { :q => user_emails_query, :per_page => batch_size }, :accept => :json)
