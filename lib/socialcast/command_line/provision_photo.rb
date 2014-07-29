@@ -77,8 +77,7 @@ module Socialcast
 
       def assert_no_unsupported_configurations
         unless configured?
-          connection_names = unsupported_configurations
-          message = "Cannot sync photos: #{connection_names.join(', ')} do not have a mapping for the profile photo field."
+          message = "Cannot sync photos: #{unsupported_configurations.join(', ')} do not have a mapping for the profile photo field."
           log(message)
           raise Socialcast::CommandLine::Provisioner::ProvisionError, message
         end
