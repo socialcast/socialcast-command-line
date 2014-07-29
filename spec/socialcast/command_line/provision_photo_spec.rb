@@ -3,6 +3,7 @@ require 'spec_helper'
 describe Socialcast::CommandLine::ProvisionPhoto do
   let!(:ldap_with_profile_photo_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_profile_photo.yml')) }
   let!(:ldap_multiple_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_connection_mappings.yml')) }
+  let!(:ldap_multiple_incomplete_connection_mapping_config) { YAML.load_file(File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'ldap_with_multiple_incomplete_connection_mappings.yml')) }
   let(:default_profile_photo_id) { 3 }
   let(:another_profile_photo_id) { 4 }
 
@@ -20,7 +21,8 @@ describe Socialcast::CommandLine::ProvisionPhoto do
   describe '#sync' do
     context "with a single ldap connection" do
       let(:options) { {} }
-      subject(:sync_photos) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_with_profile_photo_config, options).sync }
+      let(:provisioner) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_with_profile_photo_config, options) }
+      subject(:sync_photos) { provisioner.sync }
       let(:user_search_resource) { double(:user_search_resource) }
       let(:user_submit_resource) { double(:user_submit_resource) }
       let(:data_fingerprint) { '5d41402abc4b2a76b9719d911017c592' }
@@ -110,7 +112,7 @@ describe Socialcast::CommandLine::ProvisionPhoto do
       end
     end
 
-    context "with multiple ldap connections" do
+    context "with multiple fully configured ldap connections" do
       let(:user_search_resource) { double(:user_search_resource) }
       let(:search_api_response) do
         {
@@ -136,8 +138,8 @@ describe Socialcast::CommandLine::ProvisionPhoto do
           ]
         }
       end
-
-      let(:sync_photos) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_multiple_connection_mapping_config, {}).sync }
+      let(:provisioner) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_multiple_connection_mapping_config, {}) }
+      let(:sync_photos) { provisioner.sync }
       let(:binary_photo_data) { "\x89PNGabc".force_encoding('binary') }
       before do
         Socialcast::CommandLine::ProvisionPhoto::ApiSyncStrategy.any_instance.stub(:batch_size).and_return(2)
@@ -175,6 +177,22 @@ describe Socialcast::CommandLine::ProvisionPhoto do
         sync_photos
       end
       it 'uses attributes from each connection' do end
+      it 'is considered fully configured' do
+        expect(provisioner.configured?).to be_true
+      end
+    end
+    context "with multiple incompletely configured ldap connections" do
+      let(:provisioner) { Socialcast::CommandLine::ProvisionPhoto.new(ldap_multiple_incomplete_connection_mapping_config, {}) }
+      let(:sync_photos) { provisioner.sync }
+      before do
+        expect { sync_photos }.to raise_error Socialcast::CommandLine::Provisioner::ProvisionError
+      end
+      it 'is not considered fully configured' do
+        expect(provisioner.configured?).to be_false
+      end
+      it 'provides a list of incomplete configurations' do
+        expect(provisioner.unsupported_configurations).to eq(['example_connection_2'])
+      end
     end
   end
 

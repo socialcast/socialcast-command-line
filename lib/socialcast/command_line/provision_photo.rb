@@ -6,7 +6,8 @@ module Socialcast
       attr_accessor :sync_strategy
 
       def sync(strategy_klass = ApiSyncStrategy)
-        assert_ldap_connections_support_photo!
+        assert_no_unsupported_configurations
+
         sync_strategy = strategy_klass.new(self)
         process_options = {
           :http_config => http_config,
@@ -54,6 +55,16 @@ module Socialcast
         @default_profile_photo_id ||= Socialcast::CommandLine::Authenticate.current_user['community']['default_profile_photo_id']
       end
 
+      def configured?
+        unsupported_configurations.none?
+      end
+
+      def unsupported_configurations
+        @unsupported_configurations ||= @ldap_config['connections'].reject do |connection_name, _|
+          LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).key? LDAPConnector::PROFILE_PHOTO_ATTRIBUTE
+        end.keys
+      end
+
       protected
 
       def each_photo_hash
@@ -64,13 +75,12 @@ module Socialcast
         end
       end
 
-      def assert_ldap_connections_support_photo!
-        @ldap_config['connections'].each do |connection_name, _|
-          unless LDAPConnector.attribute_mappings_for(connection_name, @ldap_config).key? LDAPConnector::PROFILE_PHOTO_ATTRIBUTE
-            message = "Cannot sync photos: #{connection_name} does not have a mapping for the profile photo field."
-            log(message)
-            raise Socialcast::CommandLine::Provisioner::ProvisionError, message
-          end
+      def assert_no_unsupported_configurations
+        unless configured?
+          connection_names = unsupported_configurations
+          message = "Cannot sync photos: #{connection_names.join(', ')} do not have a mapping for the profile photo field."
+          log(message)
+          raise Socialcast::CommandLine::Provisioner::ProvisionError, message
         end
       end
 
