@@ -56,5 +56,5 @@ See [CONTRIBUTORS.txt](https://github.com/socialcast/socialcast-command-line/blo
 
 ## Copyright
 
-Copyright (c) 2011 - 2014 Socialcast Inc.
+Copyright (c) 2011 - 2015 VMware Inc.
 See [LICENSE.txt](https://github.com/socialcast/socialcast-command-line/blob/master/LICENSE.txt) for details.

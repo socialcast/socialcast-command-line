@@ -7,9 +7,9 @@ describe Socialcast::CommandLine::Authenticate do
 
   describe '#request' do
     before do
-      RestClient::Resource.should_receive(:new).with(url, {}).and_call_original
-      RestClient::Resource.any_instance.should_receive(:post).with(subject.params, :accept => :json)
-      authenticate.should_receive(:set_default_credentials).and_return(true)
+      expect(RestClient::Resource).to receive(:new).with(url, {}).and_call_original
+      expect_any_instance_of(RestClient::Resource).to receive(:post).with(subject.params, :accept => :json)
+      expect(authenticate).to receive(:set_default_credentials).and_return(true)
       authenticate.request
     end
     context 'for a regular user' do
@@ -39,13 +39,13 @@ describe Socialcast::CommandLine::Authenticate do
       let(:stubbed_config_dir) { File.join(File.dirname(__FILE__), '..', '..', 'fixtures') }
       let(:current_user_stub) { { :user => { :id => 123 } } }
       let(:current_user_error) { { :error => "Failed to authenticate due to password" } }
-      before { Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_config_dir) }
+      before { allow(Socialcast::CommandLine).to receive(:config_dir).and_return(stubbed_config_dir) }
       context 'as a successfull authenticated user' do
         before do
           stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
             to_return(:status => 200, :body => current_user_stub.to_json)
         end
-        it { current_user['id'].should == 123 }
+        it { expect(current_user['id']).to eq(123) }
       end
       context 'when you not authenticated properly' do
         before do

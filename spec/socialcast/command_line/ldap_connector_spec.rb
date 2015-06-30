@@ -49,8 +49,8 @@ describe Socialcast::CommandLine::LDAPConnector do
   let(:ldap) { double(Net::LDAP, :open => nil, :encryption => nil, :auth => nil) }
 
   before do
-    ldap.stub(:open).and_yield
-    Net::LDAP.stub(:new).and_return(ldap)
+    allow(ldap).to receive(:open).and_yield
+    allow(Net::LDAP).to receive(:new).and_return(ldap)
   end
 
   def create_entry(cn, entry_attributes)
@@ -66,7 +66,7 @@ describe Socialcast::CommandLine::LDAPConnector do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:entry) { create_entry('user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name') }
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -88,7 +88,7 @@ describe Socialcast::CommandLine::LDAPConnector do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:entry) { create_entry('user', :mail => nil, :givenName => 'first name', :sn => 'last name') }
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it 'does not yield the entry' do
         expect do |blk|
@@ -108,7 +108,7 @@ describe Socialcast::CommandLine::LDAPConnector do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       let(:entry) { create_entry('user', :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name') }
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -137,7 +137,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it "does not retrieve the profile photo data from ldap" do
         expect do |blk|
@@ -170,10 +170,10 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['mail']))
+        expect(ldap).to receive(:search).once.ordered.with(hash_including(:attributes => ['mail']))
           .and_yield(employee_mail_entry)
           .and_yield(manager_mail_entry)
-        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf']))
+        expect(ldap).to receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf']))
           .and_yield(employee_entry)
           .and_yield(manager_entry)
       end
@@ -233,14 +233,14 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['mail']))
+        expect(ldap).to receive(:search).once.ordered.with(hash_including(:attributes => ['mail']))
           .and_yield(employee_mail_entry1)
           .and_yield(employee_mail_entry2)
           .and_yield(employee_mail_entry3)
           .and_yield(manager_mail_entry1)
           .and_yield(manager_mail_entry2)
 
-        ldap.should_receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf']))
+        expect(ldap).to receive(:search).once.ordered.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf']))
           .and_yield(employee_entry1)
           .and_yield(employee_entry2)
           .and_yield(employee_entry3)
@@ -329,7 +329,7 @@ describe Socialcast::CommandLine::LDAPConnector do
       before do
         connection.merge!({ "mappings" => { "email" => "mailConnection" } })
         entry = create_entry 'user', :mailConnection => 'user@example.com'
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mailConnection', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['mailConnection', 'isMemberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -362,7 +362,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           }
         })
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ldap_groups
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -388,7 +388,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           :isMemberOf => ["cn=External,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"])
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it "sets the account_type to 'external' and does not include roles" do
         expect do |blk|
@@ -413,7 +413,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           :isMemberOf => ["cn=TownHallAdmins,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com"])
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
       end
       it "sets the account_type to 'member' and includes roles" do
         expect do |blk|
@@ -454,13 +454,13 @@ describe Socialcast::CommandLine::LDAPConnector do
           :isMemberOf => ["cn=SFOffice,dc=example,dc=com", "cn=Sales,dc=example,dc=com"])
       end
       before do
-        ldap.should_receive(:search).once.ordered.with(
+        expect(ldap).to receive(:search).once.ordered.with(
           :return_result => false,
           :filter => "(objectClass=groupOfUniqueNames)",
           :base => "dc=example,dc=com",
           :attributes => ["gid"]).and_yield(group_entry1).and_yield(group_entry2).and_yield(group_entry3)
 
-        ldap.should_receive(:search).once.ordered.with(
+        expect(ldap).to receive(:search).once.ordered.with(
           :return_result => false,
           :filter => "(mail=*)",
           :base => "dc=example,dc=com",
@@ -486,7 +486,7 @@ describe Socialcast::CommandLine::LDAPConnector do
     context "calling when a search is already being performed" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       before do
-        ldap.should_receive(:search).and_yield(create_entry('user', :mail => 'user@example.com'))
+        expect(ldap).to receive(:search).and_yield(create_entry('user', :mail => 'user@example.com'))
       end
       it "raises an error" do
         expect do
@@ -502,7 +502,7 @@ describe Socialcast::CommandLine::LDAPConnector do
     context "calling when a search is already being performed, rescuing, then calling again" do
       let(:connector) { Socialcast::CommandLine::LDAPConnector.new('connection_1', ldap_config) }
       before do
-        ldap.should_receive(:search).and_yield(create_entry('user', :mail => 'user@example.com'))
+        expect(ldap).to receive(:search).and_yield(create_entry('user', :mail => 'user@example.com'))
       end
       it "raises an error" do
         expect do
@@ -535,7 +535,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
       end
       it do
         expect do |blk|
@@ -559,7 +559,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
       end
       it 'does not yield' do
         expect do |blk|
@@ -581,7 +581,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
       end
       it 'does not yield' do
         expect do |blk|
@@ -602,7 +602,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['mail', 'jpegPhoto'])).and_yield(entry)
       end
       it "does not raise an error" do
         expect do |blk|
@@ -628,12 +628,12 @@ describe Socialcast::CommandLine::LDAPConnector do
       let(:entry) { create_entry 'user', :uid => 'unique identifier', :givenName => 'first name', :sn => 'last name' }
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(uid=unique identifier))')
-        ldap.should_receive(:search).once
+        expect(ldap).to receive(:search).once
           .with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
       it do
-        connector.fetch_user_hash('unique identifier', {}).should == {
+        expect(connector.fetch_user_hash('unique identifier', {})).to eq({
           'account_type' => 'member',
           'contact_info' => {},
           'custom_fields' => [],
@@ -641,7 +641,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           'last_name' => 'last name',
           'roles' => [],
           'unique_identifier' => 'unique identifier'
-        }
+        })
       end
     end
 
@@ -650,12 +650,12 @@ describe Socialcast::CommandLine::LDAPConnector do
       let(:entry) { create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(mail=user@example.com))')
-        ldap.should_receive(:search).once
+        expect(ldap).to receive(:search).once
           .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
       it do
-        connector.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
+        expect(connector.fetch_user_hash('user@example.com', :identifying_field => 'email')).to eq({
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user@example.com'
@@ -664,7 +664,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           'first_name' => 'first name',
           'last_name' => 'last name',
           'roles' => []
-        }
+        })
       end
     end
 
@@ -674,12 +674,12 @@ describe Socialcast::CommandLine::LDAPConnector do
       let(:entry) { create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name' }
       before do
         filter = Net::LDAP::Filter.construct('(&(objectclass=*)(mail=user@example.com))')
-        ldap.should_receive(:search).once
+        expect(ldap).to receive(:search).once
           .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
       it do
-        connector.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
+        expect(connector.fetch_user_hash('user@example.com', :identifying_field => 'email')).to eq({
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user@example.com'
@@ -688,7 +688,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           'first_name' => 'first name',
           'last_name' => 'last name',
           'roles' => []
-        }
+        })
       end
     end
 
@@ -713,30 +713,30 @@ describe Socialcast::CommandLine::LDAPConnector do
         }
       end
       before do
-        ldap.should_receive(:search).once.ordered.with(
+        expect(ldap).to receive(:search).once.ordered.with(
           :return_result => false,
           :filter => "(objectClass=groupOfUniqueNames)",
           :base => "dc=example,dc=com",
           :attributes => ["gid"]).and_yield(group)
 
-        ldap.should_receive(:search).once.ordered.with(
+        expect(ldap).to receive(:search).once.ordered.with(
           :return_result => false,
           :filter => "(mail=*)",
           :base => "dc=example,dc=com",
           :attributes => ["mail"]).and_yield(manager)
 
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mail=user1@example.com))')
-        ldap.should_receive(:search).once.ordered
+        expect(ldap).to receive(:search).once.ordered
           .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf'], :filter => filter1))
           .and_yield(user1)
 
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mail=user2@example.com))')
-        ldap.should_receive(:search).once.ordered
+        expect(ldap).to receive(:search).once.ordered
           .with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'manager_dn', 'isMemberOf'], :filter => filter2))
           .and_yield(user2)
       end
       it "caches managers and groups" do
-        connector.fetch_user_hash('user1@example.com', :identifying_field => 'email').should == {
+        expect(connector.fetch_user_hash('user1@example.com', :identifying_field => 'email')).to eq({
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user1@example.com'
@@ -746,9 +746,9 @@ describe Socialcast::CommandLine::LDAPConnector do
           'last_name' => 'last name 1',
           'groups' => [],
           'roles' => []
-        }
+        })
 
-        connector.fetch_user_hash('user2@example.com', :identifying_field => 'email').should == {
+        expect(connector.fetch_user_hash('user2@example.com', :identifying_field => 'email')).to eq({
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user2@example.com'
@@ -758,7 +758,7 @@ describe Socialcast::CommandLine::LDAPConnector do
           'last_name' => 'last name 2',
           'groups' => ['sales_group_id'],
           'roles' => []
-        }
+        })
       end
     end
   end
@@ -780,12 +780,12 @@ describe Socialcast::CommandLine::LDAPConnector do
     let(:ldap_instance) { double(Net::LDAP, :encryption => nil, :auth => nil) }
     context "passed hash for attribute" do
       it "returns a string that used defined string template" do
-        connector.send(:grab, entry, { "value" => "123%{mail}", "mail" => "mail" }).should == "123sean@example.com"
+        expect(connector.send(:grab, entry, { "value" => "123%{mail}", "mail" => "mail" })).to eq("123sean@example.com")
       end
     end
     context "passed string for attribute" do
       it "returns exact string stored in entry" do
-        connector.send(:grab, entry, "mail").should == "sean@example.com"
+        expect(connector.send(:grab, entry, "mail")).to eq("sean@example.com")
       end
     end
     context "passed string that can be constantized and the resulting Class responds to run" do
@@ -797,7 +797,7 @@ describe Socialcast::CommandLine::LDAPConnector do
             end
           end
         end
-        connector.send(:grab, entry, "Socialcast::CommandLine::FakeAttributeMap").should == "sebn@exbmple.com"
+        expect(connector.send(:grab, entry, "Socialcast::CommandLine::FakeAttributeMap")).to eq("sebn@exbmple.com")
       end
     end
     context "passed string that must be classified and the resulting Class responds to run" do
@@ -809,7 +809,7 @@ describe Socialcast::CommandLine::LDAPConnector do
             end
           end
         end
-        connector.send(:grab, entry, "socialcast/command_line/fake_attribute_map").should == "sebn@exbmple.com"
+        expect(connector.send(:grab, entry, "socialcast/command_line/fake_attribute_map")).to eq("sebn@exbmple.com")
       end
     end
     context "attribute passed has a collision between string and Class" do
@@ -824,7 +824,7 @@ describe Socialcast::CommandLine::LDAPConnector do
         Object.send(:remove_const, :Mail)
       end
       it "returns the result of the Class run method" do
-        connector.send(:grab, entry, "mail").should == "sebn@exbmple.com"
+        expect(connector.send(:grab, entry, "mail")).to eq("sebn@exbmple.com")
       end
     end
     context "attribute passed constantizes to a module instead of a class" do
@@ -834,7 +834,7 @@ describe Socialcast::CommandLine::LDAPConnector do
             return "#{entry[:mail].first.gsub(/a/,'b')}"
           end
         end
-        connector.send(:grab, entry, "FakeAttributeMap").should == "sebn@exbmple.com"
+        expect(connector.send(:grab, entry, "FakeAttributeMap")).to eq("sebn@exbmple.com")
       end
     end
   end

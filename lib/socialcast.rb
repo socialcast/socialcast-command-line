@@ -40,8 +40,11 @@ module Socialcast
     def self.resource_for_path(path, options = {}, debug = true)
       RestClient.log = Logger.new(STDOUT) if debug
       RestClient.proxy = credentials[:proxy] if credentials[:proxy]
+
+      rest_client_options = options.merge(authentication(options))
+      rest_client_options[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE if rest_client_options.delete('skip_ssl_validation')
       url = ['https://', credentials[:domain], path].join
-      RestClient::Resource.new url, options.merge(authentication(options))
+      RestClient::Resource.new url, rest_client_options
     end
 
     def self.authentication(options)

@@ -15,20 +15,20 @@ describe Socialcast::CommandLine::CLI do
   let(:another_profile_photo_id) { 4 }
 
   before do
-    Socialcast::CommandLine.stub(:credentials).and_return(credentials)
-    Socialcast::CommandLine::ProvisionPhoto.any_instance.stub(:default_profile_photo_id).and_return(default_profile_photo_id)
+    allow(Socialcast::CommandLine).to receive(:credentials).and_return(credentials)
+    allow_any_instance_of(Socialcast::CommandLine::ProvisionPhoto).to receive(:default_profile_photo_id).and_return(default_profile_photo_id)
   end
 
   let(:ldap) do
     ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
-    ldap_instance.should_receive(:open).and_yield
-    Net::LDAP.should_receive(:new).and_return(ldap_instance)
+    expect(ldap_instance).to receive(:open).and_yield
+    expect(Net::LDAP).to receive(:new).and_return(ldap_instance)
     ldap_instance
   end
 
   describe '#info' do
     before do
-      Socialcast::CommandLine::CLI.any_instance.should_receive(:say).with("Socialcast Command Line #{Socialcast::CommandLine::VERSION}")
+      expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:say).with("Socialcast Command Line #{Socialcast::CommandLine::VERSION}")
     end
     context '--version' do
       before do
@@ -51,11 +51,11 @@ describe Socialcast::CommandLine::CLI do
     let(:first_tenant_domain) { 'test1.socialcast.com' }
     let(:second_tenant_domain) { 'test2.socialcast.com' }
     before do
-      Socialcast::CommandLine.should_receive(:credentials=).with({
+      expect(Socialcast::CommandLine).to receive(:credentials=).with({
         :domain => default_domain,
         :proxy => nil
       })
-      Socialcast::CommandLine.should_receive(:credentials=).with({
+      expect(Socialcast::CommandLine).to receive(:credentials=).with({
         :user => user,
         :password => password,
         :domain => domain_to_set
@@ -88,11 +88,11 @@ describe Socialcast::CommandLine::CLI do
     let(:api_client_secret) { 'my-client-secret' }
     let(:domain) { 'api.socialcast.com' }
     before do
-      Socialcast::CommandLine.should_receive(:credentials=).with({
+      expect(Socialcast::CommandLine).to receive(:credentials=).with({
         :domain => 'api.socialcast.com',
         :proxy => nil
       })
-      Socialcast::CommandLine.should_receive(:credentials=).with({
+      expect(Socialcast::CommandLine).to receive(:credentials=).with({
         :api_client_identifier => api_client_identifier,
         :api_client_secret => api_client_secret,
       })
@@ -168,7 +168,7 @@ describe Socialcast::CommandLine::CLI do
     context "with no profile_photo mapping" do
       let(:config_file) { ldap_default_config_file }
       it "reports an error" do
-        lambda { Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file] }.should raise_error Socialcast::CommandLine::Provisioner::ProvisionError
+        expect { Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file] }.to raise_error Socialcast::CommandLine::Provisioner::ProvisionError
       end
     end
 
@@ -179,7 +179,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:jpegPhoto] = photo_data
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)
         search_api_response = {
@@ -195,16 +195,16 @@ describe Socialcast::CommandLine::CLI do
             }
           ]
         }
-        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
-        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+        expect(user_search_resource).to receive(:get).and_return(search_api_response.to_json)
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
         user_resource = double(:user_resource)
-        user_resource.should_receive(:put) do |data|
+        expect(user_resource).to receive(:put) do |data|
           uploaded_data = data[:user][:profile_photo][:data]
-          uploaded_data.read.force_encoding('binary').should == photo_data
-          uploaded_data.path.should =~ /\.png\Z/
+          expect(uploaded_data.read.force_encoding('binary')).to eq(photo_data)
+          expect(uploaded_data.path).to match(/\.png\Z/)
         end
-        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
 
         Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file]
       end
@@ -218,7 +218,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:jpegPhoto] = photo_data
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)
         search_api_response = {
@@ -234,12 +234,12 @@ describe Socialcast::CommandLine::CLI do
             }
           ]
         }
-        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
-        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+        expect(user_search_resource).to receive(:get).and_return(search_api_response.to_json)
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
         user_resource = double(:user_resource)
-        user_resource.should_not_receive(:put)
-        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+        expect(user_resource).not_to receive(:put)
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
 
         Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file]
       end
@@ -253,7 +253,7 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:jpegPhoto] = photo_data
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         user_search_resource = double(:user_search_resource)
         search_api_response = {
@@ -269,12 +269,12 @@ describe Socialcast::CommandLine::CLI do
             }
           ]
         }
-        user_search_resource.should_receive(:get).and_return(search_api_response.to_json)
-        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
+        expect(user_search_resource).to receive(:get).and_return(search_api_response.to_json)
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).with('/api/users/search', anything).and_return(user_search_resource)
 
         user_resource = double(:user_resource)
-        user_resource.should_not_receive(:put)
-        Socialcast::CommandLine.stub(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
+        expect(user_resource).not_to receive(:put)
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).with('/api/users/7', anything).and_return(user_resource)
 
         Socialcast::CommandLine::CLI.start ['sync_photos', '-c', config_file]
       end
@@ -290,30 +290,30 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with 0 users found in ldap' do
       before do
-        ldap.should_receive(:search).and_return(nil)
+        expect(ldap).to receive(:search).and_return(nil)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.should_not_receive(:post)
+        expect_any_instance_of(RestClient::Resource).not_to receive(:post)
       end
       it 'does not post to Socialcast and raises error' do
-        lambda { Socialcast::CommandLine::CLI.start ['provision'] }.should raise_error SystemExit
+        expect { Socialcast::CommandLine::CLI.start ['provision'] }.to raise_error SystemExit
       end
     end
     context 'with 0 users found in ldap and force option passed' do
       before do
-        ldap.should_receive(:search).and_return(nil)
+        expect(ldap).to receive(:search).and_return(nil)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
 
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.should_receive(:post).once
+        expect_any_instance_of(RestClient::Resource).to receive(:post).once
 
         Socialcast::CommandLine::CLI.start ['provision', '-f']
       end
@@ -321,17 +321,17 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with socialcast returning 401' do
       before do
-        ldap.should_receive(:search).and_return(nil)
+        expect(ldap).to receive(:search).and_return(nil)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
 
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
         rest_client_resource = double(:rest_client_resource)
-        rest_client_resource.stub(:post).and_raise(RestClient::Unauthorized.new(double('Unauthorized HTTP Response', :code => '401', :body => 'Unauthorized HTTP Response')))
-        Socialcast::CommandLine.stub(:resource_for_path).and_return(rest_client_resource)
-        Kernel.should_receive(:abort).with("Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help.").once
+        allow(rest_client_resource).to receive(:post).and_raise(RestClient::Unauthorized.new(double('Unauthorized HTTP Response', :code => '401', :body => 'Unauthorized HTTP Response')))
+        allow(Socialcast::CommandLine).to receive(:resource_for_path).and_return(rest_client_resource)
+        expect(Kernel).to receive(:abort).with(an_instance_of(String)).once
 
         Socialcast::CommandLine::CLI.start ['provision', '-f']
       end
@@ -341,13 +341,13 @@ describe Socialcast::CommandLine::CLI do
       before do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).with(hash_including('config' => '/my/path/to/ldap.yml')).and_return(ldap_without_permission_mappings_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        RestClient::Resource.any_instance.stub(:post)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).with(hash_including('config' => '/my/path/to/ldap.yml')).and_return(ldap_without_permission_mappings_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision', '-c', '/my/path/to/ldap.yml']
       end
@@ -355,7 +355,7 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with plugins option used with non-existent ruby files' do
       it 'does not post to Socialcast and raises an error' do
-        lambda { Socialcast::CommandLine::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', ['does_not_exist.rb', 'also_does_not_exist.rb']] }.should raise_error
+        expect { Socialcast::CommandLine::CLI.start ['provision', '-c', '/my/path/to/ldap.yml', '--plugins', ['does_not_exist.rb', 'also_does_not_exist.rb']] }.to raise_error
       end
     end
     context 'with plugins option used with existent ruby file' do
@@ -363,18 +363,18 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
         @entry[:plugin_attr] = 'some value'
-        ldap.should_receive(:search).with(hash_including(:attributes => ['plugin_attr', 'sn', 'mail', 'memberof'])).and_yield(@entry)
+        expect(ldap).to receive(:search).with(hash_including(:attributes => ['plugin_attr', 'sn', 'mail', 'memberof'])).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_plugin_mapping_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
-        RestClient::Resource.any_instance.stub(:post)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_with_plugin_mapping_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision', '--plugins', [File.join(File.dirname(__FILE__), '..', '..', 'fixtures', 'fake_attribute_map')]]
       end
       it 'successfully processes' do
-        @result.should =~ %r{some vblue}
+        expect(@result).to match(%r{some vblue})
       end # see expectations
     end
     context 'with ldap.yml configuration excluding permission_mappings' do
@@ -382,19 +382,19 @@ describe Socialcast::CommandLine::CLI do
         @entry = Net::LDAP::Entry.new("dc=example,dc=com")
         @entry[:mail] = 'ryan@example.com'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_without_permission_mappings_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision']
       end
       it 'excludes roles element' do
-        @result.should_not =~ %r{roles}
+        expect(@result).not_to match(%r{roles})
       end
     end
     context 'with external group member' do
@@ -403,19 +403,19 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=External,dc=example,dc=com'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_default_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision']
       end
       it 'sets account-type to external' do
-        @result.should =~ %r{<account-type>external</account-type>}
+        expect(@result).to match(%r{<account-type>external</account-type>})
       end
     end
     context 'with multiple possible external group member' do
@@ -424,19 +424,19 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Contractor,dc=example,dc=com'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision']
       end
       it 'sets account-type to external' do
-        @result.should =~ %r{<account-type>external</account-type>}
+        expect(@result).to match(%r{<account-type>external</account-type>})
       end
     end
 
@@ -446,22 +446,22 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Admins,dc=example,dc=com'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_default_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_default_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision']
       end
       it 'sets account-type to member' do
-        @result.should =~ %r{<account-type>member</account-type>}
+        expect(@result).to match(%r{<account-type>member</account-type>})
       end
       it 'adds tenant_admin role' do
-        @result.should =~ %r{<role>tenant_admin</role>}
+        expect(@result).to match(%r{<role>tenant_admin</role>})
       end
     end
     context 'entry isMemberOf Marketing group' do
@@ -470,22 +470,22 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Marketing,dc=example,dc=com'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml']
       end
       it 'sets account-type to member' do
-        @result.should =~ %r{<account-type>member</account-type>}
+        expect(@result).to match(%r{<account-type>member</account-type>})
       end
       it 'adds sbi_admin role' do
-        @result.should =~ %r{<role>sbi_admin</role>}
+        expect(@result).to match(%r{<role>sbi_admin</role>})
       end
     end
     context 'entry isMemberOf Engineering group' do
@@ -494,22 +494,22 @@ describe Socialcast::CommandLine::CLI do
         @entry[:mail] = 'ryan@example.com'
         @entry[:isMemberOf] = 'cn=Engineering,dc=example,dc=com'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_with_array_permission_mapping_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision']
       end
       it 'sets account-type to member' do
-        @result.should =~ %r{<account-type>member</account-type>}
+        expect(@result).to match(%r{<account-type>member</account-type>})
       end
       it 'adds sbi_admin role' do
-        @result.should =~ %r{<role>sbi_admin</role>}
+        expect(@result).to match(%r{<role>sbi_admin</role>})
       end
     end
 
@@ -520,20 +520,20 @@ describe Socialcast::CommandLine::CLI do
         @entry[:l] = 'San Francisco'
         @entry[:co] = 'USA'
 
-        ldap.should_receive(:search).and_yield(@entry)
+        expect(ldap).to receive(:search).and_yield(@entry)
 
         @result = ''
-        Zlib::GzipWriter.stub(:open).and_yield(@result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_interpolated_values_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(@result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_with_interpolated_values_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision']
       end
 
       it 'formats l and co according to template' do
-        @result.should =~ %r{<location>San Francisco, USA</location>}
+        expect(@result).to match(%r{<location>San Francisco, USA</location>})
       end
     end
 
@@ -546,21 +546,21 @@ describe Socialcast::CommandLine::CLI do
         manager_entry = Net::LDAP::Entry.new("cn=manager,dc=example,dc=com")
         manager_entry[:mail] = 'manager@example.com'
 
-        ldap.should_receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
-        ldap.should_receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
+        expect(ldap).to receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
+        expect(ldap).to receive(:search).once.ordered.and_yield(manager_entry).and_yield(employee_entry)
 
-        Zlib::GzipWriter.stub(:open).and_yield(result)
-        Socialcast::CommandLine::CLI.any_instance.should_receive(:ldap_config).and_return(ldap_with_manager_attribute_config)
-        File.stub(:open).with(/users.xml.gz/, anything).and_yield(@result)
+        allow(Zlib::GzipWriter).to receive(:open).and_yield(result)
+        expect_any_instance_of(Socialcast::CommandLine::CLI).to receive(:ldap_config).and_return(ldap_with_manager_attribute_config)
+        allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(@result)
 
-        RestClient::Resource.any_instance.stub(:post)
+        allow_any_instance_of(RestClient::Resource).to receive(:post)
 
         Socialcast::CommandLine::CLI.start ['provision', '-c', 'spec/fixtures/ldap.yml']
       end
 
       it 'adds a manager_email entry of bossman@example.com' do
-        result.should =~ /<email>employee@example.com<\/email>/
-        result.should =~ /<label>manager_email<\/label>\s*<value>manager@example.com<\/value>/
+        expect(result).to match(/<email>employee@example.com<\/email>/)
+        expect(result).to match(/<label>manager_email<\/label>\s*<value>manager@example.com<\/value>/)
       end
     end
   end

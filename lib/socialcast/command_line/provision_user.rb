@@ -2,6 +2,7 @@ require 'zlib'
 require 'builder'
 require 'set'
 require 'fileutils'
+require 'active_support/core_ext/string/strip'
 
 module Socialcast
   module CommandLine
@@ -55,12 +56,31 @@ module Socialcast
               request_params[:add_only] = 'true' if (@ldap_config.fetch('options', {})['add_only'] || @options[:add_only])
               resource.post request_params, :accept => :json
             end
-          rescue RestClient::Unauthorized => e
-            raise ProvisionError.new "Authenticated user either does not have administration privileges or the community is not configured to allow provisioning. Please contact Socialcast support to if you need help." if e.http_code == 401
+          rescue RestClient::Unauthorized, RestClient::Forbidden => e
+            raise ProvisionError.new provision_error_message(e)
           end
           log "Finished"
         end
         File.delete(output_file) if (@ldap_config.fetch('options', {})['delete_users_file'] || @options[:delete_users_file])
+      end
+
+      private
+
+      def provision_error_message(error)
+        case error
+        when RestClient::Unauthorized
+          <<-EOS.strip_heredoc
+            Received an "Unauthorized" error from the Socialcast server. Please check the following:
+            * Community has basic authentication enabled
+            * User has administration privileges
+            * User or External System is active
+            * Credentials and community domain are correct in #{Socialcast::CommandLine.credentials_file}
+          EOS
+        when RestClient::Forbidden
+          <<-EOS.strip_heredoc
+            Received a "Forbidden" error from the Socialcast server. Please check that your community has directory integration enabled.
+          EOS
+        end
       end
     end
   end
