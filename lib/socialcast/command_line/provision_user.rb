@@ -57,7 +57,7 @@ module Socialcast
               resource.post request_params, :accept => :json
             end
           rescue RestClient::Unauthorized, RestClient::Forbidden => e
-            raise ProvisionError.new provision_error_message(e.http_code)
+            raise ProvisionError.new provision_error_message(e)
           end
           log "Finished"
         end
@@ -66,9 +66,9 @@ module Socialcast
 
       private
 
-      def provision_error_message(error_code)
-        case error_code
-        when 401
+      def provision_error_message(error)
+        case error
+        when RestClient::Unauthorized
           <<-EOS.strip_heredoc
             Received an "Unauthorized" error from the Socialcast server. Please check the following:
             * Community has basic authentication enabled
@@ -76,7 +76,7 @@ module Socialcast
             * User or External System is active
             * Credentials and community domain are correct in #{Socialcast::CommandLine.credentials_file}
           EOS
-        when 403
+        when RestClient::Forbidden
           <<-EOS.strip_heredoc
             Received a "Forbidden" error from the Socialcast server. Please check that your community has directory integration enabled.
           EOS
