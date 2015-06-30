@@ -89,3 +89,6 @@ options:
 # http options for connecting to Socialcast servers
 http:
   timeout: 660
+  # Skip validation of the SSL certificate on the socialcast server. Default=false
+  # WARNING: enabling this could allow an unauthorized party to view your data
+  # skip_ssl_validation: false

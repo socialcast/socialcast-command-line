@@ -49,17 +49,39 @@ describe Socialcast::CommandLine do
   describe '.resource_for_path' do
     let(:path) { '/mypath' }
     let(:url) { "https://test.staging.socialcast.com#{path}" }
-    before do
-      RestClient::Resource.should_receive(:new).with(url, options)
-      Socialcast::CommandLine.resource_for_path(path, options)
-    end
     context 'when using basic auth' do
       let(:options) { { :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] } }
+      before do
+        RestClient::Resource.should_receive(:new).with(url, options)
+        Socialcast::CommandLine.resource_for_path(path, options)
+      end
       it 'sends user email and password' do end
     end
     context 'when using an external system' do
       let(:options) { { :external_system => true, :headers => { :Authorization=>"SocialcastApiClient my_id:mysecret" } } }
+      before do
+        RestClient::Resource.should_receive(:new).with(url, options)
+        Socialcast::CommandLine.resource_for_path(path, options)
+      end
       it 'sends external system credentials' do end
+    end
+    context 'when options["skip_ssl_validation"] == false' do
+      let(:options) { { 'skip_ssl_validation' => false, :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] } }
+      before do
+        received_options = { :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] }
+        RestClient::Resource.should_receive(:new).with(url, received_options)
+        Socialcast::CommandLine.resource_for_path(path, options)
+      end
+      it 'does not send skip ssl validation option' do end
+    end
+    context 'when options["skip_ssl_validation"] == true' do
+      let(:options) { { 'skip_ssl_validation' => true, :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] } }
+      before do
+        received_options = { :verify_ssl => OpenSSL::SSL::VERIFY_NONE, :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] }
+        RestClient::Resource.should_receive(:new).with(url, received_options)
+        Socialcast::CommandLine.resource_for_path(path, options)
+      end
+      it 'sends skip ssl validation option' do end
     end
   end
 end
