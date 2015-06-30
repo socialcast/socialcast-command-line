@@ -424,6 +424,32 @@ describe Socialcast::CommandLine::ProvisionUser do
         result.should =~ /user@example.com/
       end
     end
+
+    context 'when a 401 response is received' do
+      before do
+        entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/users/provision").to_return(:status => 401)
+      end
+      it do
+        expect do
+          Socialcast::CommandLine::ProvisionUser.new(ldap_default_config, {}).provision
+        end.to raise_error Socialcast::CommandLine::ProvisionUser::ProvisionError, /Unauthorized/
+      end
+    end
+
+    context 'when a 403 response is received' do
+      before do
+        entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
+        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/users/provision").to_return(:status => 403)
+      end
+      it do
+        expect do
+          Socialcast::CommandLine::ProvisionUser.new(ldap_default_config, {}).provision
+        end.to raise_error Socialcast::CommandLine::ProvisionUser::ProvisionError, /Forbidden/
+      end
+    end
   end
 
   describe "#each_user_hash" do
