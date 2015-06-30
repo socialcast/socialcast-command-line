@@ -4,7 +4,7 @@ describe Socialcast::CommandLine do
 
   let(:custom_file) { File.join(File.dirname(__FILE__), '..', 'fixtures', 'custom_credentials.yml') }
   let(:stubbed_credentials) { File.join(File.dirname(__FILE__), '..', 'fixtures') }
-  before { Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials) }
+  before { allow(Socialcast::CommandLine).to receive(:config_dir).and_return(stubbed_credentials) }
   let!(:orig_credentials) { Socialcast::CommandLine.credentials }
 
   describe '.credentials_file' do
@@ -24,10 +24,10 @@ describe Socialcast::CommandLine do
     describe 'with ENV variable' do
       before { ENV['SC_CREDENTIALS_FILE'] = custom_file }
       after { ENV['SC_CREDENTIALS_FILE'] = nil }
-      it { subject[:user].should == 'mike@socialcast.com' }
+      it { expect(subject[:user]).to eq('mike@socialcast.com') }
     end
     describe 'without ENV variable' do
-      it { subject[:user].should == 'ryan@socialcast.com' }
+      it { expect(subject[:user]).to eq('ryan@socialcast.com') }
     end
   end
 
@@ -37,12 +37,12 @@ describe Socialcast::CommandLine do
     after { Socialcast::CommandLine.credentials = orig_credentials }
     subject { Socialcast::CommandLine.credentials }
     context 'modifies the credentials file with the options content' do
-      it { subject[:user].should == 'mike@socialcast.com' }
+      it { expect(subject[:user]).to eq('mike@socialcast.com') }
     end
     context 'only changes the content provided' do
       let(:options) { { :api_client_secret => 'mysecret', :api_client_identifier => 'my_id' } }
-      it { subject[:api_client_identifier].should == 'my_id' }
-      it { subject[:user].should == 'ryan@socialcast.com' }
+      it { expect(subject[:api_client_identifier]).to eq('my_id') }
+      it { expect(subject[:user]).to eq('ryan@socialcast.com') }
     end
   end
 
@@ -52,7 +52,7 @@ describe Socialcast::CommandLine do
     context 'when using basic auth' do
       let(:options) { { :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] } }
       before do
-        RestClient::Resource.should_receive(:new).with(url, options)
+        expect(RestClient::Resource).to receive(:new).with(url, options)
         Socialcast::CommandLine.resource_for_path(path, options)
       end
       it 'sends user email and password' do end
@@ -60,7 +60,7 @@ describe Socialcast::CommandLine do
     context 'when using an external system' do
       let(:options) { { :external_system => true, :headers => { :Authorization=>"SocialcastApiClient my_id:mysecret" } } }
       before do
-        RestClient::Resource.should_receive(:new).with(url, options)
+        expect(RestClient::Resource).to receive(:new).with(url, options)
         Socialcast::CommandLine.resource_for_path(path, options)
       end
       it 'sends external system credentials' do end
@@ -69,7 +69,7 @@ describe Socialcast::CommandLine do
       let(:options) { { 'skip_ssl_validation' => false, :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] } }
       before do
         received_options = { :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] }
-        RestClient::Resource.should_receive(:new).with(url, received_options)
+        expect(RestClient::Resource).to receive(:new).with(url, received_options)
         Socialcast::CommandLine.resource_for_path(path, options)
       end
       it 'does not send skip ssl validation option' do end
@@ -78,7 +78,7 @@ describe Socialcast::CommandLine do
       let(:options) { { 'skip_ssl_validation' => true, :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] } }
       before do
         received_options = { :verify_ssl => OpenSSL::SSL::VERIFY_NONE, :user => Socialcast::CommandLine.credentials[:user], :password => Socialcast::CommandLine.credentials[:password] }
-        RestClient::Resource.should_receive(:new).with(url, received_options)
+        expect(RestClient::Resource).to receive(:new).with(url, received_options)
         Socialcast::CommandLine.resource_for_path(path, options)
       end
       it 'sends skip ssl validation option' do end

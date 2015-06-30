@@ -3,7 +3,6 @@ require 'bundler/setup'
 require 'webmock/rspec'
 require 'rspec/mocks'
 require 'pry'
-RSpec::Mocks::setup(Object.new)
 
 require_relative '../lib/socialcast'
 
@@ -12,7 +11,7 @@ RSpec.configure do |config|
 
   config.before do
     stubbed_credentials = File.join(File.dirname(__FILE__), '..', 'fixtures')
-    Socialcast::CommandLine.stub(:config_dir).and_return(stubbed_credentials)
+    allow(Socialcast::CommandLine).to receive(:config_dir).and_return(stubbed_credentials)
   end
 
   def create_entry(cn, entry_attributes)

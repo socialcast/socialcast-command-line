@@ -19,8 +19,8 @@ describe Socialcast::CommandLine::ProvisionUser do
 
   let(:ldap) do
     ldap_instance = double(Net::LDAP, :auth => nil, :encryption => nil)
-    ldap_instance.should_receive(:open).and_yield
-    Net::LDAP.should_receive(:new).and_return(ldap_instance)
+    expect(ldap_instance).to receive(:open).and_yield
+    expect(Net::LDAP).to receive(:new).and_return(ldap_instance)
     ldap_instance
   end
 
@@ -28,40 +28,40 @@ describe Socialcast::CommandLine::ProvisionUser do
     let(:result) { '' }
 
     before do
-      Zlib::GzipWriter.stub(:open).and_yield(result)
-      Socialcast::CommandLine.stub(:credentials).and_return(credentials)
-      File.stub(:open).with(/users.xml.gz/, anything).and_yield(result)
+      allow(Zlib::GzipWriter).to receive(:open).and_yield(result)
+      allow(Socialcast::CommandLine).to receive(:credentials).and_return(credentials)
+      allow(File).to receive(:open).with(/users.xml.gz/, anything).and_yield(result)
     end
 
     context "when the entry has an email" do
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
-        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect_any_instance_of(RestClient::Resource).to receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
         Socialcast::CommandLine::ProvisionUser.new(ldap_default_config, {}).provision
       end
       it "puts the user in the output file" do
-        result.should =~ /user@example.com/
+        expect(result).to match(/user@example.com/)
       end
     end
     context "when the entry has a unique_identifier" do
       before do
         entry = create_entry 'user', :uid => 'userID', :givenName => 'first name', :sn => 'last name'
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
-        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'uid', 'isMemberOf'])).and_yield(entry)
+        expect_any_instance_of(RestClient::Resource).to receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
         Socialcast::CommandLine::ProvisionUser.new(ldap_with_unique_identifier_config, {}).provision
       end
       it "puts the user in the output file" do
-        result.should =~ /userID/
+        expect(result).to match(/userID/)
       end
     end
     context "when the entry has no email or unique_identifier" do
       before do
         entry = create_entry 'user', :mail => '', :givenName => 'first name', :sn => 'last name'
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
-        RestClient::Resource.any_instance.should_not_receive(:post)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect_any_instance_of(RestClient::Resource).not_to receive(:post)
       end
       it "does not put the user in the output file" do
         expect do
@@ -79,25 +79,25 @@ describe Socialcast::CommandLine::ProvisionUser do
               <roles type="array"/>
             </user>]
           end
-          result.gsub(/\s/, '').should == %Q[
+          expect(result.gsub(/\s/, '')).to eq(%Q[
            <?xml version="1.0" encoding="UTF-8"?>
            <export>
             <users type="array">
             #{users}
             </users>
            </export>
-          ].gsub(/\s/, '')
+          ].gsub(/\s/, ''))
         end
       end
 
       before do
-        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+        expect_any_instance_of(RestClient::Resource).to receive(:post).once.with(hash_including(:file => result), { :accept => :json })
       end
 
       context "with mappings at the global level" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::ProvisionUser.new(ldap_default_config, {}).provision
         end
@@ -117,16 +117,16 @@ describe Socialcast::CommandLine::ProvisionUser do
           provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_multiple_connection_mapping_config, {})
 
           ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance1.should_receive(:open).and_yield
-          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
+          expect(ldap_instance1).to receive(:open).and_yield
+          expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry 'user', :mailCon => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
+          expect(ldap_instance1).to receive(:search).once.with(hash_including(:attributes => ['mailCon', 'isMemberOf'])).and_yield(entry1)
 
           ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance2.should_receive(:open).and_yield
-          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
+          expect(ldap_instance2).to receive(:open).and_yield
+          expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry 'user', :mailCon2 => 'user2@example.com', :firstName => 'first name2', :sn => 'last name2'
-          ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
+          expect(ldap_instance2).to receive(:search).once.with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'])).and_yield(entry2)
 
           provision_instance.provision
         end
@@ -148,7 +148,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "with custom attribute mappings" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :custom_ldap1 => 'custom value 1', :custom_ldap2 => 'custom value 2'
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['custom_ldap1', 'custom_ldap2', 'mail', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::ProvisionUser.new(ldap_with_custom_attributes_config, {}).provision
         end
@@ -177,13 +177,13 @@ describe Socialcast::CommandLine::ProvisionUser do
           provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_with_manager_attribute_config, {})
 
           ldap_instance = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance.should_receive(:open).and_yield
-          Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
+          expect(ldap_instance).to receive(:open).and_yield
+          expect(Net::LDAP).to receive(:new).once.and_return(ldap_instance)
 
           user_entry = create_entry 'user', :mail => 'user@example.com', :ldap_manager => 'cn=theboss,dc=example,dc=com'
           manager_entry = create_entry 'theboss', :mail => 'boss@example.com'
-          ldap_instance.should_receive(:search).once.ordered.and_yield(user_entry).and_yield(manager_entry)
-          ldap_instance.should_receive(:search).once.ordered.and_yield(user_entry).and_yield(manager_entry)
+          expect(ldap_instance).to receive(:search).once.ordered.and_yield(user_entry).and_yield(manager_entry)
+          expect(ldap_instance).to receive(:search).once.ordered.and_yield(user_entry).and_yield(manager_entry)
 
           provision_instance.provision
         end
@@ -216,7 +216,7 @@ describe Socialcast::CommandLine::ProvisionUser do
         before do
           module TestLdapAttributeMapping end
           entry = create_entry 'user', :test_ldap_attribute_mapping => 'user@example.com'
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['test_ldap_attribute_mapping', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::ProvisionUser.new(ldap_with_class_ldap_attribute_config, {}).provision
         end
@@ -235,7 +235,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "without options specified" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
 
           Socialcast::CommandLine::ProvisionUser.new(ldap_without_options_config, {}).provision
         end
@@ -253,7 +253,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "with profile_photo attribute mappings" do
         before do
           entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberof'])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberof'])).and_yield(entry)
 
           Socialcast::CommandLine::ProvisionUser.new(ldap_with_profile_photo_config, {}).provision
         end
@@ -282,14 +282,14 @@ describe Socialcast::CommandLine::ProvisionUser do
               #{permission_xml}
             </user>]
           end
-          result.gsub(/\s/, '').should == %Q[
+          expect(result.gsub(/\s/, '')).to eq(%Q[
            <?xml version="1.0" encoding="UTF-8"?>
            <export>
             <users type="array">
             #{users}
             </users>
            </export>
-          ].gsub(/\s/, '')
+          ].gsub(/\s/, ''))
         end
       end
 
@@ -297,13 +297,13 @@ describe Socialcast::CommandLine::ProvisionUser do
       let(:ldap_group_attribute) { 'isMemberOf' }
 
       before do
-        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+        expect_any_instance_of(RestClient::Resource).to receive(:post).once.with(hash_including(:file => result), { :accept => :json })
       end
 
       context "with roles for an external contributor" do
         let(:ldap_groups) { ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::ProvisionUser.new(ldap_default_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -315,7 +315,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "with roles for a member" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::ProvisionUser.new(ldap_default_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -331,7 +331,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "with account_types mapping and no role mappings" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::ProvisionUser.new(ldap_with_account_type_without_roles_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -343,7 +343,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "with role mappings and no account_type mapping" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::ProvisionUser.new(ldap_with_roles_without_account_type_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -359,7 +359,7 @@ describe Socialcast::CommandLine::ProvisionUser do
       context "without account_type or roles mappings" do
         let(:ldap_groups) { ["cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"] }
         before do
-          ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
+          expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', ldap_group_attribute])).and_yield(entry)
           Socialcast::CommandLine::ProvisionUser.new(ldap_without_account_type_or_roles_config, {}).provision
         end
         let(:expected_permission_xml) do
@@ -375,16 +375,16 @@ describe Socialcast::CommandLine::ProvisionUser do
           provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_multiple_connection_permission_mapping_config, {})
 
           ldap_instance1 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance1.should_receive(:open).and_yield
-          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
+          expect(ldap_instance1).to receive(:open).and_yield
+          expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance1)
           entry1 = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :memberOf => ["cn=External,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
-          ldap_instance1.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry1)
+          expect(ldap_instance1).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'memberOf'])).and_yield(entry1)
 
           ldap_instance2 = double(Net::LDAP, :encryption => nil, :auth => nil)
-          ldap_instance2.should_receive(:open).and_yield
-          Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
+          expect(ldap_instance2).to receive(:open).and_yield
+          expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance2)
           entry2 = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name', :member => ["cn=Contractors,dc=example,dc=com", "cn=SbiAdmins,dc=example,dc=com", "cn=TownHallAdmins,dc=example,dc=com"]
-          ldap_instance2.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'member'])).and_yield(entry2)
+          expect(ldap_instance2).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'member'])).and_yield(entry2)
 
           provision_instance.provision
         end
@@ -404,31 +404,31 @@ describe Socialcast::CommandLine::ProvisionUser do
 
     context "with no basedn configured" do
       before do
-        RestClient::Resource.any_instance.should_receive(:post).once.with(hash_including(:file => result), { :accept => :json })
+        expect_any_instance_of(RestClient::Resource).to receive(:post).once.with(hash_including(:file => result), { :accept => :json })
 
         provision_instance = Socialcast::CommandLine::ProvisionUser.new(ldap_blank_basedn_config, {})
 
         root_entry = create_entry('domain', :namingcontexts => ['dc=foo,dc=com', 'dc=bar,dc=com'])
         ldap_instance = double(Net::LDAP, :encryption => nil, :auth => nil)
-        ldap_instance.should_receive(:search_root_dse).once.and_return(root_entry)
-        ldap_instance.should_receive(:open).and_yield
-        Net::LDAP.should_receive(:new).once.and_return(ldap_instance)
+        expect(ldap_instance).to receive(:search_root_dse).once.and_return(root_entry)
+        expect(ldap_instance).to receive(:open).and_yield
+        expect(Net::LDAP).to receive(:new).once.and_return(ldap_instance)
 
         user_entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=foo,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
-        ldap_instance.should_receive(:search).once.ordered.with(hash_including(:base => 'dc=bar,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(user_entry)
+        expect(ldap_instance).to receive(:search).once.ordered.with(hash_including(:base => 'dc=foo,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf']))
+        expect(ldap_instance).to receive(:search).once.ordered.with(hash_including(:base => 'dc=bar,dc=com', :attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(user_entry)
 
         provision_instance.provision
       end
       it "searches all basedns and puts the user in the output file" do
-        result.should =~ /user@example.com/
+        expect(result).to match(/user@example.com/)
       end
     end
 
     context 'when a 401 response is received' do
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/users/provision").to_return(:status => 401)
       end
       it do
@@ -441,7 +441,7 @@ describe Socialcast::CommandLine::ProvisionUser do
     context 'when a 403 response is received' do
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-        ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+        expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/users/provision").to_return(:status => 403)
       end
       it do
@@ -456,7 +456,7 @@ describe Socialcast::CommandLine::ProvisionUser do
     let(:provision_instance) { Socialcast::CommandLine::ProvisionUser.new(ldap_default_config) }
     before do
       entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
-      ldap.should_receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
+      expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
     end
     it do
       expect do |blk|
@@ -480,19 +480,19 @@ describe Socialcast::CommandLine::ProvisionUser do
       let(:entry) { create_entry 'user', :mailCon => 'user@example.com' }
       before do
         filter = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
-        ldap.should_receive(:search).once
+        expect(ldap).to receive(:search).once
           .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter))
           .and_yield(entry)
       end
       it "returns the entry" do
-        provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
+        expect(provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email')).to eq({
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user@example.com'
           },
           'custom_fields' => [],
           'roles' => []
-        }
+        })
       end
     end
     context "when another connector returns the entry" do
@@ -500,23 +500,23 @@ describe Socialcast::CommandLine::ProvisionUser do
       let(:entry) { create_entry 'user', :mailCon2 => 'user@example.com', :firstName => 'first name' }
       before do
         ldap_instance1 = double(Net::LDAP, :auth => nil)
-        ldap_instance1.should_receive(:open).and_yield
-        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
+        expect(ldap_instance1).to receive(:open).and_yield
+        expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance1)
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
-        ldap_instance1.should_receive(:search).once.ordered
+        expect(ldap_instance1).to receive(:search).once.ordered
           .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
 
         ldap_instance2 = double(Net::LDAP, :auth => nil)
-        ldap_instance2.should_receive(:open).and_yield
-        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
+        expect(ldap_instance2).to receive(:open).and_yield
+        expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance2)
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
-        ldap_instance2.should_receive(:search).once.ordered
+        expect(ldap_instance2).to receive(:search).once.ordered
           .with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'], :filter => filter2))
           .and_yield(entry)
 
       end
       it "returns the entry" do
-        provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should == {
+        expect(provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email')).to eq({
           'account_type' => 'member',
           'contact_info' => {
             'email' => 'user@example.com'
@@ -524,28 +524,28 @@ describe Socialcast::CommandLine::ProvisionUser do
           'first_name' => 'first name',
           'custom_fields' => [],
           'roles' => []
-        }
+        })
       end
     end
     context "when no connectors return the entry" do
       let(:provision_instance) { Socialcast::CommandLine::ProvisionUser.new(ldap_multiple_connection_mapping_config, {}) }
       before do
         ldap_instance1 = double(Net::LDAP, :auth => nil)
-        ldap_instance1.should_receive(:open).and_yield
-        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance1)
+        expect(ldap_instance1).to receive(:open).and_yield
+        expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance1)
         filter1 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon=user@example.com))')
-        ldap_instance1.should_receive(:search)
+        expect(ldap_instance1).to receive(:search)
           .with(hash_including(:attributes => ['mailCon', 'isMemberOf'], :filter => filter1))
 
         ldap_instance2 = double(Net::LDAP, :auth => nil)
-        ldap_instance2.should_receive(:open).and_yield
-        Net::LDAP.should_receive(:new).once.ordered.and_return(ldap_instance2)
+        expect(ldap_instance2).to receive(:open).and_yield
+        expect(Net::LDAP).to receive(:new).once.ordered.and_return(ldap_instance2)
         filter2 = Net::LDAP::Filter.construct('(&(mail=*)(mailCon2=user@example.com))')
-        ldap_instance2.should_receive(:search).once.ordered
+        expect(ldap_instance2).to receive(:search).once.ordered
           .with(hash_including(:attributes => ['mailCon2', 'firstName', 'isMemberOf'], :filter => filter2))
       end
       it "returns nil" do
-        provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email').should be_nil
+        expect(provision_instance.fetch_user_hash('user@example.com', :identifying_field => 'email')).to be_nil
       end
     end
   end
