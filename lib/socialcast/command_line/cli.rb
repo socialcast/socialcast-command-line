@@ -47,7 +47,7 @@ module Socialcast
       method_option :domain, :type => :string, :default => 'api.socialcast.com', :desc => 'Socialcast community domain'
       method_option :proxy, :type => :string, :desc => 'HTTP proxy options for connecting to Socialcast server'
       def authenticate
-        user = options[:user] || ask('Socialcast username: ')
+        user = options[:user] || ask('Socialcast login (email address): ')
         password = options[:password] || HighLine.new.ask("Socialcast password: ") { |q| q.echo = false }.to_s
 
         params = { :email => user, :password => password }
