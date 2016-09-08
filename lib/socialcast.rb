@@ -37,7 +37,7 @@ module Socialcast
     end
 
     # configure restclient for api call
-    def self.resource_for_path(path, options = {}, debug = true)
+    def self.resource_for_path(path, options = {}, debug = false)
       RestClient.log = Logger.new(STDOUT) if debug
       RestClient.proxy = credentials[:proxy] if credentials[:proxy]
 
