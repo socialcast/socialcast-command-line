@@ -36,7 +36,7 @@ module Socialcast
         end
 
         def proxy
-          Socialcast::CommandLine.credentials[:proxy] if Socialcast::CommandLine.credentials[:proxy]
+          Socialcast::CommandLine.credentials[:proxy]
         end
 
         def user
