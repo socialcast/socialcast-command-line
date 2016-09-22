@@ -1,5 +1,5 @@
 module Socialcast
   module CommandLine
-    VERSION = '1.3.20'
+    VERSION = '1.4.0'
   end
 end

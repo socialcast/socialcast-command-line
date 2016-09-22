@@ -121,6 +121,39 @@ describe Socialcast::CommandLine::CLI do
       end
     end
 
+    context 'with response data' do
+      before do
+        message_request_data =  {
+          'message' => {
+            'body' => 'testing',
+            'url' => nil,
+            'message_type' => nil,
+            'attachment_ids' => [],
+            'group_id' => nil
+          }
+        }
+        message_response_data = {
+          'message' => message_request_data['message'].merge(
+            'id' => 123,
+            'permalink_url' => 'https://test.stagings.socialcast.com/messages/123'
+          )
+        }
+        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json")
+          .with(:body => message_request_data)
+          .with(:headers => {'Accept' => 'application/json'})
+          .to_return(:status => 200, :body => message_response_data.to_json, :headers => {})
+      end
+      it do
+        message_object = nil
+        expect(Socialcast::CommandLine::Message).to receive(:create).and_wrap_original do |method, *args|
+          message_object = method.call(*args)
+        end
+        Socialcast::CommandLine::CLI.start ['share', 'testing']
+        expect(message_object.permalink_url).to eq 'https://test.stagings.socialcast.com/messages/123'
+        expect(message_object['permalink_url']).to eq 'https://test.stagings.socialcast.com/messages/123'
+      end
+    end
+
     context 'with a message_type message' do
       before do
         stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
