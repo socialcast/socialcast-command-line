@@ -10,20 +10,6 @@ require 'highline'
 require 'logger'
 require 'fileutils'
 
-# uncomment to debug HTTP traffic
-# class ActiveResource::Connection
-#   def configure_http(http)
-#     http = apply_ssl_options(http)
-#     # Net::HTTP timeouts default to 60 seconds.
-#     if @timeout
-#       http.open_timeout = @timeout
-#       http.read_timeout = @timeout
-#     end
-#     http.set_debug_output STDOUT
-#     http
-#   end
-# end
-
 module Socialcast
   module CommandLine
     class CLI < Thor
@@ -109,10 +95,9 @@ module Socialcast
           end
         end
 
-        ActiveResource::Base.logger = Logger.new(STDOUT) if options[:trace]
-        Socialcast::CommandLine::Message.configure_from_credentials
-        Socialcast::CommandLine::Message.create :body => message, :url => options[:url], :message_type => options[:message_type], :attachment_ids => attachment_ids, :group_id => options[:group_id]
-
+        Socialcast::CommandLine::Message.with_debug options[:trace] do
+          Socialcast::CommandLine::Message.create :body => message, :url => options[:url], :message_type => options[:message_type], :attachment_ids => attachment_ids, :group_id => options[:group_id]
+        end
         say "Message has been shared"
       end
 

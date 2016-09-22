@@ -2,7 +2,8 @@ require 'zlib'
 require 'builder'
 require 'set'
 require 'fileutils'
-require 'active_support/core_ext/string/strip'
+require 'active_support'
+require 'active_support/core_ext'
 
 module Socialcast
   module CommandLine
