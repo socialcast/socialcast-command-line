@@ -1,3 +1,6 @@
+require 'ostruct'
+require 'json'
+
 module Socialcast
   module CommandLine
     class Message
@@ -13,8 +16,11 @@ module Socialcast
           resource = RestClient::Resource.new create_url, options
           attributes_json = { :message => attributes }.to_json
           response = resource.post attributes_json, :accept => :json, :content_type => :json
-          puts "API response: #{response.body.to_s}" if debug
-          response
+          response_body = response.body.to_s.presence
+          puts "API response: #{response_body}" if debug
+
+          response_data = response_body ? JSON.parse(response_body) : {}
+          OpenStruct.new(response_data['message'] || {})
         end
 
         def with_debug(new_value)
@@ -43,6 +49,10 @@ module Socialcast
 
         def create_url
           File.join(site, 'messages.json')
+        end
+
+        def configure_from_credentials
+          # backwards-compatibility noop
         end
       end
     end
