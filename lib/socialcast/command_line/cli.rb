@@ -124,7 +124,7 @@ module Socialcast
 
       desc 'sync_photos', 'Upload default avatar photos from LDAP repository'
       method_option :config, :default => 'ldap.yml', :aliases => '-c'
-      method_option :force_sync, :default => false, :aliases => '-f', :desc => 'Pushes all photos from LDAP to socialcast'
+      method_option :force_sync, :type => :boolean, :aliases => '-f', :desc => 'Pushes all photos from LDAP to socialcast'
       def sync_photos
         config = ldap_config options
 
