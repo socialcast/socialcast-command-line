@@ -127,6 +127,7 @@ module Socialcast
       method_option :force_sync, :type => :boolean, :aliases => '-f', :desc => 'Pushes all photos from LDAP to socialcast'
       def sync_photos
         config = ldap_config options
+
         Socialcast::CommandLine::ProvisionPhoto.new(config, options).sync
       end
 
