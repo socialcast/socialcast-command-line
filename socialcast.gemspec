@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'json', '~> 1.4', '>= 1.4.6'
   s.add_runtime_dependency 'thor', '~> 0.14', '>= 0.14.6'
   s.add_runtime_dependency 'highline', '~> 1.6', '>= 1.6.2'
-  s.add_runtime_dependency 'socialcast-net-ldap', '~> 0.1', '>= 0.1.6'
+  s.add_runtime_dependency 'net-ldap', '~> 0.15', '>= 0.15.0'
   s.add_runtime_dependency 'activesupport', '>= 4.0'
   s.add_runtime_dependency 'builder', '~> 3.1'
   s.add_development_dependency 'rspec', '~> 3.3'
