@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe NetLDAPPatches::Connection::NextMsgid do
+describe NetLdapPatches::Connection::NextMsgid do
   describe '#next_msgid' do
     context 'when ENV["NET_LDAP_INITIAL_MSGID"] is not present' do
       it { expect(Net::LDAP::Connection.new.next_msgid).to eq 301 }

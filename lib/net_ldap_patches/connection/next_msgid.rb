@@ -1,4 +1,4 @@
-module NetLDAPPatches
+module NetLdapPatches
   module Connection
     module NextMsgid
       INITIAL_MSGID_ENV_VAR = 'NET_LDAP_INITIAL_MSGID'
@@ -13,4 +13,4 @@ module NetLDAPPatches
   end
 end
 
-Net::LDAP::Connection.prepend NetLDAPPatches::Connection::NextMsgid
+Net::LDAP::Connection.prepend NetLdapPatches::Connection::NextMsgid
