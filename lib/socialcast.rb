@@ -9,6 +9,7 @@ require_relative 'socialcast/command_line/provision_photo'
 require_relative 'socialcast/command_line/message'
 require_relative 'socialcast/command_line/cli'
 require_relative 'socialcast/command_line/version'
+require_relative 'net_ldap_patches/connection/next_msgid'
 
 module Socialcast
   module CommandLine
