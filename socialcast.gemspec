@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
   s.rubyforge_project = "socialcast"
 
   s.add_runtime_dependency 'rest-client', '~> 1.7'
-  s.add_runtime_dependency 'json', '~> 1.4', '>= 1.4.6'
+  s.add_runtime_dependency 'json', '>= 1.4.6'
   s.add_runtime_dependency 'thor', '~> 0.14', '>= 0.14.6'
   s.add_runtime_dependency 'highline', '~> 1.6', '>= 1.6.2'
   s.add_runtime_dependency 'net-ldap', '~> 0.15', '>= 0.15.0'
