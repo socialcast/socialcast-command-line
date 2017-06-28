@@ -42,15 +42,17 @@ describe Socialcast::CommandLine::Authenticate do
       before { allow(Socialcast::CommandLine).to receive(:config_dir).and_return(stubbed_config_dir) }
       context 'as a successfull authenticated user' do
         before do
-          stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
-            to_return(:status => 200, :body => current_user_stub.to_json)
+          stub_request(:get, "https://test.staging.socialcast.com/api/userinfo.json")
+            .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+            .to_return(:status => 200, :body => current_user_stub.to_json)
         end
         it { expect(current_user['id']).to eq(123) }
       end
       context 'when you not authenticated properly' do
         before do
-          stub_request(:get, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/userinfo.json").
-            to_return(:status => 200, :body => current_user_error.to_json)
+          stub_request(:get, "https://test.staging.socialcast.com/api/userinfo.json")
+            .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+            .to_return(:status => 200, :body => current_user_error.to_json)
         end
         it { expect { current_user }.to raise_error(RuntimeError) }
       end
