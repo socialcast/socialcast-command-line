@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
 
   s.rubyforge_project = "socialcast"
 
-  s.add_runtime_dependency 'rest-client', '~> 1.7'
+  s.add_runtime_dependency 'rest-client', '~> 2.0'
   s.add_runtime_dependency 'json', '>= 1.4.6'
   s.add_runtime_dependency 'thor', '~> 0.14', '>= 0.14.6'
   s.add_runtime_dependency 'highline', '~> 1.6', '>= 1.6.2'
@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'activesupport', '>= 4.0'
   s.add_runtime_dependency 'builder', '~> 3.1'
   s.add_development_dependency 'rspec', '~> 3.3'
-  s.add_development_dependency 'webmock', '~> 1.7', '>= 1.7.7'
+  s.add_development_dependency 'webmock', '~> 2.3', '>= 2.3.1'
   s.add_development_dependency 'rake', '0.9.2.2'
   s.add_development_dependency 'pry', '~> 0.9'
 
