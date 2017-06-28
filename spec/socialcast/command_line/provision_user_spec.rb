@@ -429,7 +429,9 @@ describe Socialcast::CommandLine::ProvisionUser do
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
         expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/users/provision").to_return(:status => 401)
+        stub_request(:post, "https://test.staging.socialcast.com/api/users/provision")
+          .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+          .to_return(:status => 401)
       end
       it do
         expect do
@@ -442,7 +444,9 @@ describe Socialcast::CommandLine::ProvisionUser do
       before do
         entry = create_entry 'user', :mail => 'user@example.com', :givenName => 'first name', :sn => 'last name'
         expect(ldap).to receive(:search).once.with(hash_including(:attributes => ['givenName', 'sn', 'mail', 'isMemberOf'])).and_yield(entry)
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/users/provision").to_return(:status => 403)
+        stub_request(:post, "https://test.staging.socialcast.com/api/users/provision")
+          .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+          .to_return(:status => 403)
       end
       it do
         expect do
