@@ -109,8 +109,8 @@ describe Socialcast::CommandLine::CLI do
     # Expects -u=emily@socialcast.com -p=demo --domain=demo.socialcast.com
     context 'with a basic message' do
       before do
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
-                 with(:body => { "message" => { "body" => "testing", "url" => nil, "message_type" => nil, "attachment_ids" => [], "group_id" => nil }}).
+        stub_request(:post, "https://test.staging.socialcast.com/api/messages.json").
+                 with(:basic_auth => ['ryan@socialcast.com', 'foo'], :body => { "message" => { "body" => "testing", "url" => nil, "message_type" => nil, "attachment_ids" => [], "group_id" => nil }}).
                  with(:headers => {'Accept' => 'application/json'}).
                  to_return(:status => 200, :body => "", :headers => {})
 
@@ -138,7 +138,8 @@ describe Socialcast::CommandLine::CLI do
             'permalink_url' => 'https://test.stagings.socialcast.com/messages/123'
           )
         }
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json")
+        stub_request(:post, "https://test.staging.socialcast.com/api/messages.json")
+          .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
           .with(:body => message_request_data)
           .with(:headers => {'Accept' => 'application/json'})
           .to_return(:status => 200, :body => message_response_data.to_json, :headers => {})
@@ -156,11 +157,12 @@ describe Socialcast::CommandLine::CLI do
 
     context 'with a message_type message' do
       before do
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
-                 with(:body => /message\_type\"\:review\_request/).
-                 with(:body => /please\sreview/).
-                 with(:headers => {'Accept' => 'application/json'}).
-                 to_return(:status => 200, :body => "", :headers => {})
+        stub_request(:post, "https://test.staging.socialcast.com/api/messages.json")
+                .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+                .with(:body => /message\_type\"\:review\_request/)
+                .with(:body => /please\sreview/)
+                .with(:headers => {'Accept' => 'application/json'})
+                .to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CommandLine::CLI.start ['share', 'please review', '--message_type=review_request']
       end
@@ -170,10 +172,11 @@ describe Socialcast::CommandLine::CLI do
     end
     context 'with a group_id param' do
       before do
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
-                 with(:body => /group\_id\"\:123/).
-                 with(:headers => {'Accept' => 'application/json'}).
-                 to_return(:status => 200, :body => "", :headers => {})
+        stub_request(:post, "https://test.staging.socialcast.com/api/messages.json")
+                .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+                .with(:body => /group\_id\"\:123/)
+                .with(:headers => {'Accept' => 'application/json'})
+                .to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CommandLine::CLI.start ['share', 'hi', '--group_id=123']
       end
@@ -183,11 +186,12 @@ describe Socialcast::CommandLine::CLI do
     end
     context "with a proxy" do
       before do
-        stub_request(:post, "https://ryan%40socialcast.com:foo@test.staging.socialcast.com/api/messages.json").
-                 with(:body => /message\_type\"\:null/).
-                 with(:body => /testing/).
-                 with(:headers => {'Accept' => 'application/json'}).
-                 to_return(:status => 200, :body => "", :headers => {})
+        stub_request(:post, "https://test.staging.socialcast.com/api/messages.json")
+                .with(:basic_auth => ['ryan@socialcast.com', 'foo'])
+                .with(:body => /message\_type\"\:null/)
+                .with(:body => /testing/)
+                .with(:headers => {'Accept' => 'application/json'})
+                .to_return(:status => 200, :body => "", :headers => {})
 
         Socialcast::CommandLine::CLI.start ['share', 'testing']
       end
